@@ -11,41 +11,50 @@
 #include "Util.h"
 #include <unistd.h>
 #include <memory>
+#include <std_msgs/Float64.h>
+#include <geometry_msgs/Vector3.h>
+#include <eigen3/Eigen/Dense>
 
 using namespace Navio;
 
-int main(int argc, char **argv)
+static float thrust_coefficient = 0.0000132;
+static float torque_coefficient = 0.000000217;
+
+float thrust = 0.0;
+Eigen::Vector3f tau;
+Eigen::Vector4f omega_squared;
+
+///////////////////////////////////////////////////////////////////
+//////////////////// Callback Functions ///////////////////////////
+///////////////////////////////////////////////////////////////////
+void ThrustInputCallback(const std_msgs::Float64::ConstPtr& thr)
 {
-   ros::init(argc, argv, "pwm_node_pub");
-   ros::NodeHandle n;
- 
-   ros::Publisher thrust_pub = n.advertise<mavros_msgs::Thrust>("/mavros/setpoint_attitude/thrust",100);
-   ros::Rate loop_rate(100);
-   ros::spinOnce();
- 
-   mavros_msgs::Thrust msg;
-   int count = 1;
+	thrust = thr->data;
+}
+
+void TorqueInputsCallback(const geometry_msgs::Vector3::ConstPtr& tor)
+{
+	tau(0) = tor->x;
+	tau(1) = tor->y;
+	tau(2) = tor->z;
+}
+
+int main(int argc, char **argv) {
+    ros::init(argc, argv, "pwm_node_pub");
+    ros::NodeHandle nh;
+
+    ros::Subscriber thrust_sub = nh.subscribe("quad_thrust",100,&ThrustInputCallback);
+	ros::Subscriber quad_torques_sub = nh.subscribe("quad_torques",100,&TorqueInputsCallback);
+
+    ros::Rate loop_rate(200);
+    ros::spinOnce();
      
-        //PositionReciever qp;:
-        //Body some_object;
-        //qp.connect_to_server();
- 
-     
-   while(ros::ok()){
-       //some_object = qp.getStatus();
-        // some_object.print();
-        //printf("%f\n",some_object.position_x);
-       msg.header.stamp = ros::Time::now();
-       msg.header.seq=count;
-       msg.header.frame_id = 1;
-       msg.thrust = 0.5;
- 
-       thrust_pub.publish(msg);
-       ros::spinOnce();
-       count++;
-       loop_rate.sleep();
-   }
-    
-       
-   return 0;
+    while(ros::ok()) {
+
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
+        
+        
+    return 0;
 }
