@@ -26,6 +26,7 @@ float thrust = 0.0;
 Eigen::Vector3f tau = {0.0, 0.0, 0.0};
 Eigen::Vector4f omega_squared = {0.0, 0.0, 0.0, 0.0};
 Eigen::Vector4f control_inputs = {0.0, 0.0, 0.0, 0.0};
+Eigen::Vector4f pwm_signal = {0.0, 0.0, 0.0, 0.0};
 
 // Considering u = Ax with 
 // u as [thrust, vector of torques]
@@ -70,10 +71,14 @@ int main(int argc, char **argv) {
 
         omega_squared << A.inverse() * control_inputs;
 
+        pwm_signal(0) = -0.00000000137 * powf(omega_squared(0), 2) + 0.00226 * omega_squared(0) + 1076.6;
+        pwm_signal(1) = -0.00000000137 * powf(omega_squared(1), 2) + 0.00226 * omega_squared(1) + 1076.6;
+        pwm_signal(2) = -0.00000000137 * powf(omega_squared(2), 2) + 0.00226 * omega_squared(2) + 1076.6;
+        pwm_signal(3) = -0.00000000137 * powf(omega_squared(3), 2) + 0.00226 * omega_squared(3) + 1076.6;
+
         ros::spinOnce();
         loop_rate.sleep();
     }
-        
         
     return 0;
 }
