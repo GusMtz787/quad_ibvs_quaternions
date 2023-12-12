@@ -19,10 +19,22 @@ using namespace Navio;
 
 static float thrust_coefficient = 0.0000132;
 static float torque_coefficient = 0.000000217;
+static float L = 0.23; // distance from QUAV center to propeller center in meters
+static float sin_pi_4 = 0.7071;
 
 float thrust = 0.0;
-Eigen::Vector3f tau;
-Eigen::Vector4f omega_squared;
+Eigen::Vector3f tau = {0.0, 0.0, 0.0};
+Eigen::Vector4f omega_squared = {0.0, 0.0, 0.0, 0.0};
+Eigen::Vector4f control_inputs = {0.0, 0.0, 0.0, 0.0};
+
+// Considering u = Ax with 
+// u as [thrust, vector of torques]
+// A as the matrix relating u and x
+// x as the Omega squared (velocities squared) vector
+static Eigen::Matrix4f A = (Eigen::Matrix4f() << thrust_coefficient, thrust_coefficient, thrust_coefficient, thrust_coefficient,
+    L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient,
+    L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient,
+    -torque_coefficient, torque_coefficient, -torque_coefficient, torque_coefficient).finished();
 
 ///////////////////////////////////////////////////////////////////
 //////////////////// Callback Functions ///////////////////////////
@@ -50,6 +62,13 @@ int main(int argc, char **argv) {
     ros::spinOnce();
      
     while(ros::ok()) {
+        
+        control_inputs(0) = thrust;
+        control_inputs(1) = tau(0);
+        control_inputs(2) = tau(1);
+        control_inputs(3) = tau(2);
+
+        omega_squared << A.inverse() * control_inputs;
 
         ros::spinOnce();
         loop_rate.sleep();
