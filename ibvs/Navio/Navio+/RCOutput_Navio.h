@@ -1,9 +1,9 @@
 #ifndef RCOUTPUT_NAVIO_H
 #define RCOUTPUT_NAVIO_H
 
-#include <RCOutput.h>
+#include <Common/RCOutput.h>
 #include "PCA9685.h"
-#include <gpio.h>
+#include <Common/gpio.h>
 
 using namespace Navio;
 

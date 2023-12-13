@@ -5,17 +5,10 @@
 #include "geometry_msgs/Vector3Stamped.h"
 #include "mavros_msgs/Thrust.h"
 #include <unistd.h>
-#include "PWM.h"
-#include "RCOutput_Navio.h"
-#include "RCOutput_Navio2.h"
-#include "Util.h"
-#include <unistd.h>
 #include <memory>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Vector3.h>
 #include <eigen3/Eigen/Dense>
-
-using namespace Navio;
 
 static float thrust_coefficient = 0.0000132;
 static float torque_coefficient = 0.000000217;
@@ -58,6 +51,8 @@ int main(int argc, char **argv) {
 
     ros::Subscriber thrust_sub = nh.subscribe("quad_thrust",100,&ThrustInputCallback);
 	ros::Subscriber quad_torques_sub = nh.subscribe("quad_torques",100,&TorqueInputsCallback);
+
+    //auto pwm = get_rcout();
 
     ros::Rate loop_rate(200);
     ros::spinOnce();

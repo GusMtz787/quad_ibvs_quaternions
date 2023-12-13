@@ -1,0 +1,6 @@
+<launch>
+  <node name="pwm_pubs" pkg="pwm_package" type="set_pwm.py" output="screen">
+    <!-- You can add any additional parameters here -->
+    <!-- <param name="param_name" value="param_value"/> -->
+  </node>
+</launch>
