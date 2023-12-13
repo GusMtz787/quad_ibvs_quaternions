@@ -28,7 +28,7 @@ with navio2.pwm.PWM(PWM_OUTPUT) as pwm:
     while not rospy.is_shutdown():
         print("Minimums")
         pwm.set_duty_cycle(SERVO_MIN)
-        time.sleep(1)
+        time.sleep(2)
         print("Maximum")
         pwm.set_duty_cycle(SERVO_MAX)
-        time.sleep(1)
+        time.sleep(2)
