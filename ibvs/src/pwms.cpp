@@ -8,6 +8,7 @@
 #include <memory>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Quaternion.h>
 #include <eigen3/Eigen/Dense>
 
 static float thrust_coefficient = 0.0000132;
@@ -49,6 +50,10 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "pwm_node_pub");
     ros::NodeHandle nh;
 
+    ros::Publisher pwm_values_pub = nh.advertise<geometry_msgs::Quaternion>("pwm_values",100);
+
+	geometry_msgs::Quaternion pwm_values;
+
     ros::Subscriber thrust_sub = nh.subscribe("quad_thrust",100,&ThrustInputCallback);
 	ros::Subscriber quad_torques_sub = nh.subscribe("quad_torques",100,&TorqueInputsCallback);
 
@@ -70,6 +75,13 @@ int main(int argc, char **argv) {
         pwm_signal(1) = -0.00000000137 * powf(omega_squared(1), 2) + 0.00226 * omega_squared(1) + 1076.6;
         pwm_signal(2) = -0.00000000137 * powf(omega_squared(2), 2) + 0.00226 * omega_squared(2) + 1076.6;
         pwm_signal(3) = -0.00000000137 * powf(omega_squared(3), 2) + 0.00226 * omega_squared(3) + 1076.6;
+
+        pwm_values.w = pwm_signal(0);
+        pwm_values.x = pwm_signal(1);
+        pwm_values.y = pwm_signal(2);
+        pwm_values.z = pwm_signal(3);
+
+        pwm_values_pub.publish(pwm_values);
 
         ros::spinOnce();
         loop_rate.sleep();

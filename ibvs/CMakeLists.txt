@@ -33,21 +33,19 @@ include_directories(
   ${EIGEN_3_INCLUDE_DIRS}
 )
 
-add_executable(attitude_ansft_node src/attitude_control.cpp)
-target_link_libraries(attitude_ansft_node ${catkin_LIBRARIES})
+add_executable(attitude_ctrl_node src/attitude_control.cpp)
+target_link_libraries(attitude_ctrl_node ${catkin_LIBRARIES})
 
-add_executable(offboard_node src/offboard_test.cpp)
-target_link_libraries(offboard_node ${catkin_LIBRARIES})
+add_executable(position_ctrl_node src/position_control.cpp)
+target_link_libraries(position_ctrl_node ${catkin_LIBRARIES})
 
 add_executable(pwm_node src/pwms.cpp)
-target_link_libraries(pwm_node ${catkin_LIBRARIES}   /home/pi/Navio2/C++/Navio)
+target_link_libraries(pwm_node ${catkin_LIBRARIES})
 
 add_executable(video_publisher_node src/image_publisher.cpp)
 target_link_libraries(video_publisher_node ${catkin_LIBRARIES})
 target_link_libraries(video_publisher_node  ${OpenCV_LIBRARIES})
 
-# add_executable(esc_node src/esc.cpp)
-# target_link_libraries(esc_node ${catkin_LIBRARIES})
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
