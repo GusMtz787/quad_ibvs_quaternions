@@ -81,6 +81,8 @@ int main(int argc, char **argv) {
         pwm_values.y = pwm_signal(2);
         pwm_values.z = pwm_signal(3);
 
+        std::cout << pwm_values << std::endl;
+
         pwm_values_pub.publish(pwm_values);
 
         ros::spinOnce();
