@@ -56,7 +56,7 @@ def sender():
         pwm2.set_duty_cycle(SERVO_MAX)
         pwm3.set_duty_cycle(SERVO_MAX)
         pwm4.set_duty_cycle(SERVO_MAX)
-        time.sleep(2)
+        time.sleep(5)
         
         # Enter PWM signal loop
         while not rospy.is_shutdown():

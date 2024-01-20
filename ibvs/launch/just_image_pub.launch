@@ -1,0 +1,4 @@
+<launch>
+  <node name="image_acquisition" pkg="ibvs" type="video_publisher_node">
+  </node>
+</launch>
