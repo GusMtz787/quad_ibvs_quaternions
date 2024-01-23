@@ -83,6 +83,8 @@ int main(int argc, char **argv) {
 
         std::cout << "Control inputs:" << std::endl;
         std::cout << control_inputs << std::endl;
+        std::cout << "Speed:" << std::endl;
+        std::cout << omega << std::endl;
         std::cout << "Calculated PWM values:" << std::endl;
         std::cout << pwm_values << std::endl;
 

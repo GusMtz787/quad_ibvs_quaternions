@@ -1,9 +1,9 @@
 <launch>
-  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" output="screen">
+  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" >
   </node>
-  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node">
+  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node" >
   </node>
-  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node">
+  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" >
   </node>
   <node name="image_acquisition" pkg="ibvs" type="video_publisher_node">
   </node>
