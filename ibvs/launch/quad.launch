@@ -1,5 +1,5 @@
 <launch>
-  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" >
+  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" output="screen">
   </node>
   <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node" >
   </node>
@@ -7,6 +7,8 @@
   </node>
   <node name="image_acquisition" pkg="ibvs" type="video_publisher_node">
   </node>
-  <node name="pwm_pub" pkg="ibvs" type="pwm_node" output="screen">
+  <node name="pwm_pub" pkg="ibvs" type="pwm_node" >
   </node>
+  <!-- <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keyboard" output="screen">
+  </node> -->
 </launch>

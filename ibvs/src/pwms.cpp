@@ -69,7 +69,8 @@ int main(int argc, char **argv) {
         control_inputs(2) = tau(1);
         control_inputs(3) = tau(2);
 
-        omega << (A.inverse() * control_inputs).array().sqrt(); // To get the square root of the vector first the array function is necessary
+        // omega << (A.inverse() * control_inputs).array().sqrt(); // To get the square root of the vector first the array function is necessary
+        omega << A.inverse() * control_inputs; // To get the square root of the vector first the array function is necessary
 
         pwm_signal(0) = -0.00000000137 * powf(omega(0), 2) + 0.00226 * omega(0) + 1076.6;
         pwm_signal(1) = -0.00000000137 * powf(omega(1), 2) + 0.00226 * omega(1) + 1076.6;
