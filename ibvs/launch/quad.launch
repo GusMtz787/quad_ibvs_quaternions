@@ -1,5 +1,4 @@
 <launch>
-
   
   <!-- ATTITUDE CONTROL NODE -->
   <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node" >
@@ -20,6 +19,10 @@
   <!-- PWM CALCULATION NODE -->
   <node name="pwm_pub" pkg="ibvs" type="pwm_node" >
   </node>
+
+  <!-- IMU HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
+  <!-- <node name="imu_sub" pkg="pwm_package" type="IMU.py" output="screen">
+  </node> -->
   
   <!-- KEYBOARD CONTROL NODE -->
   <!-- <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keyboard" output="screen">
