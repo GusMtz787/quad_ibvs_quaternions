@@ -1,0 +1,6 @@
+<launch>
+  <node name="radioControl_pub" pkg="pwm_package" type="RadioControl.py" output="screen">
+    <!-- You can add any additional parameters here -->
+    <!-- <param name="param_name" value="param_value"/> -->
+  </node>
+</launch>
