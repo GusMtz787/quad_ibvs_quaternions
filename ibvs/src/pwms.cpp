@@ -77,10 +77,10 @@ int main(int argc, char **argv) {
         pwm_signal(2) = -0.00000000137 * powf(omega(2), 2) + 0.00226 * omega(2) + 1076.6;
         pwm_signal(3) = -0.00000000137 * powf(omega(3), 2) + 0.00226 * omega(3) + 1076.6;
 
-        pwm_values.w = pwm_signal(0);
+        pwm_values.w = pwm_signal(3);
         pwm_values.x = pwm_signal(1);
-        pwm_values.y = pwm_signal(2);
-        pwm_values.z = pwm_signal(3);
+        pwm_values.y = pwm_signal(0);
+        pwm_values.z = pwm_signal(2);
 
         std::cout << "Control inputs:" << std::endl;
         std::cout << control_inputs << std::endl;

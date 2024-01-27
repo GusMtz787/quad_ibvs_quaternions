@@ -6,6 +6,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Quaternion.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/transform_datatypes.h>
 //Including C++ nominal libraries
@@ -60,22 +61,28 @@ float yaw_ddot_des;
 ///////////////// Callback functions ///////////////////////////////////////////
 void attQuaternionDesCallback(const geometry_msgs::Quaternion::ConstPtr& attQuatD)
 {
-	attitude_quaternion_des.x() = attQuatD->x;
-	attitude_quaternion_des.y() = attQuatD->y;
-	attitude_quaternion_des.z() = attQuatD->z;
-	attitude_quaternion_des.w() = attQuatD->w;
+	// attitude_quaternion_des.x() = attQuatD->x;
+	// attitude_quaternion_des.y() = attQuatD->y;
+	// attitude_quaternion_des.z() = attQuatD->z;
+	// attitude_quaternion_des.w() = attQuatD->w;
+
+	// ESTO ES SOLO FIJANDO EL QUATERNION A 0. PON AQUI EL VICOOOOOON
+	attitude_quaternion_des.x() = 0.0;
+	attitude_quaternion_des.y() = 0.0;
+	attitude_quaternion_des.z() = 0.0;
+	attitude_quaternion_des.w() = 1.0;
 }
 
-void attQuaternionCallback(const geometry_msgs::Quaternion::ConstPtr& attQuat)
+void attQuaternionCallback(const geometry_msgs::TransformStamped::ConstPtr& attQuat)
 {
-	attitude_quaternion.x() = attQuat->x;
-	attitude_quaternion.y() = attQuat->y;
-	attitude_quaternion.z() = attQuat->z;
-	attitude_quaternion.w() = attQuat->w;
+	attitude_quaternion.x() = attQuat->transform.rotation.x;
+	attitude_quaternion.y() = attQuat->transform.rotation.y;
+	attitude_quaternion.z() = attQuat->transform.rotation.z;
+	attitude_quaternion.w() = attQuat->transform.rotation.w;
 
-	ATT_EULER(0) = atan2(2.0 * (attQuat->w * attQuat->y + attQuat->w * attQuat->x) , 1.0 - 2.0 * (attQuat->x * attQuat->x + attQuat->y * attQuat->y));
-    ATT_EULER(1) = asin(2.0 * (attQuat->y * attQuat->w - attQuat->z * attQuat->x));
-    ATT_EULER(2) = atan2(2.0 * (attQuat->z * attQuat->w + attQuat->x * attQuat->y) , - 1.0 + 2.0 * (attQuat->w * attQuat->w + attQuat->x * attQuat->x));
+	ATT_EULER(0) = atan2(2.0 * (attQuat->transform.rotation.w * attQuat->transform.rotation.y + attQuat->transform.rotation.w * attQuat->transform.rotation.x) , 1.0 - 2.0 * (attQuat->transform.rotation.x * attQuat->transform.rotation.x + attQuat->transform.rotation.y * attQuat->transform.rotation.y));
+    ATT_EULER(1) = asin(2.0 * (attQuat->transform.rotation.y * attQuat->transform.rotation.w - attQuat->transform.rotation.z * attQuat->transform.rotation.x));
+    ATT_EULER(2) = atan2(2.0 * (attQuat->transform.rotation.z * attQuat->transform.rotation.w + attQuat->transform.rotation.x * attQuat->transform.rotation.y) , - 1.0 + 2.0 * (attQuat->transform.rotation.w * attQuat->transform.rotation.w + attQuat->transform.rotation.x * attQuat->transform.rotation.x));
 
 }
 
@@ -145,7 +152,7 @@ int main(int argc, char *argv[])
 	ros::Rate loop_rate(100);
 	
 	ros::Subscriber desired_att_quaternions_sub = nh.subscribe("desired_attitude_quaternion",100, &attQuaternionDesCallback);
-	ros::Subscriber quad_attitude_quaternions_sub = nh.subscribe("quad_attitude_quaternion",100, &attQuaternionCallback);
+	ros::Subscriber quad_attitude_quaternions_sub = nh.subscribe("vicon/TGT/TGT",100, &attQuaternionCallback);
 	ros::Subscriber quad_attitude_velocity_sub = nh.subscribe("quad_attitude_velocity_quaternion",100, &attQuatVelCallback);
 	ros::Subscriber yaw_ddot_des_sub = nh.subscribe("yaw_ddot_desired",100, &yawddotVelCallback);
 	ros::Subscriber yaw_rate_desired_sub = nh.subscribe("yaw_rate_desired",100, &yawRateDesired);
@@ -344,7 +351,8 @@ int main(int argc, char *argv[])
 		angular_error_dot_pub.publish(angular_error_dot_var);
 
 		// std::cout << "Error_yaw " << error(2) << std::endl;
-		std::cout << "Torques " << std::endl << tau << std::endl;
+		// std::cout << "Torques " << std::endl << tau << std::endl;
+		std::cout << "QUAV attitude " << std::endl << ATT_EULER << std::endl;
 
 		ros::spinOnce();
 		loop_rate.sleep();
