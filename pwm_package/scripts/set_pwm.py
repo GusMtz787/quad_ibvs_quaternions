@@ -4,7 +4,7 @@ import rospy
 import time
 import numpy as np
 from geometry_msgs.msg import Quaternion
-from geometry_msgs.msg import Twist
+from std_msgs.msg import Int32
 
 import navio2.pwm
 import navio2.util
@@ -18,7 +18,7 @@ SERVO_MIN = SERVO_ENABLE + 0.3 #mS
 SERVO_MAX = 2.000 #
 
 pwm_signals = np.array([0.0,0.0,0.0,0.0])
-stop = 0 # 0 means DON'T stop, 1 means DO STOP
+enable = 0 # 0 means DON'T start, 1 means START
 
 def fix_below_threshold(arr, threshold, replacement_value):
     # Find the indices of elements below the threshold
@@ -33,16 +33,16 @@ def callback_pwm(pwms):
     pwm_signals[2] = pwms.y * 0.001
     pwm_signals[3] = pwms.z * 0.001
 
-def cmd_vel_callback(msg):
-    global stop
-    stop = msg.angular.z
+def callback_rcArm(msg):
+    global enable
+    enable = msg.data
 
 def sender():
 
     # Set ROS node parameters
     rospy.init_node('pwm_subscriber', anonymous=True)
     rospy.Subscriber("pwm_values", Quaternion, callback_pwm)
-    rospy.Subscriber("cmd_vel", Twist, cmd_vel_callback)
+    rospy.Subscriber("rcArm", Int32, callback_rcArm)
 
     # Enable PWM signals
     with navio2.pwm.PWM(PWM_OUTPUT_MOTOR_1) as pwm1, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_2) as pwm2, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_3) as pwm3, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_4) as pwm4:
@@ -72,22 +72,21 @@ def sender():
             fix_below_threshold(pwm_signals, SERVO_MIN, SERVO_MIN)
 
             # FAIL-SAFE FEATURE: 
-            # stop: this variable will be 1 if the "J" keyboard is pressed within the commanding laptop.
-            # if the stop is 1, then the motors will rotate at its slowest velocity.
-            print(stop)
+            # enable variable controls if the motors will spin or not.
+            # if enable is 1, then the motors are set to spin, else they will stop.
 
-            if (stop == 1):
+            if (enable == 1):
+                pwm1.set_duty_cycle(pwm_signals[0])
+                pwm2.set_duty_cycle(pwm_signals[1])
+                pwm3.set_duty_cycle(pwm_signals[2])
+                pwm4.set_duty_cycle(pwm_signals[3])
+
+            else:
                 print("Disabling motors")
                 pwm1.set_duty_cycle(SERVO_ENABLE)
                 pwm2.set_duty_cycle(SERVO_ENABLE)
                 pwm3.set_duty_cycle(SERVO_ENABLE)
                 pwm4.set_duty_cycle(SERVO_ENABLE)
-
-            else:
-                pwm1.set_duty_cycle(pwm_signals[0])
-                pwm2.set_duty_cycle(pwm_signals[1])
-                pwm3.set_duty_cycle(pwm_signals[2])
-                pwm4.set_duty_cycle(pwm_signals[3])
 
             # count = 0
             # while (count < 2000 and not rospy.is_shutdown()):

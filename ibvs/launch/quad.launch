@@ -20,6 +20,12 @@
   <node name="pwm_pub" pkg="ibvs" type="pwm_node" >
   </node>
 
+  <!-- RADIO CONTROL NODE -->
+  <node name="radioControl_pub" pkg="pwm_package" type="RadioControl.py" output="screen">
+    <!-- You can add any additional parameters here -->
+    <!-- <param name="param_name" value="param_value"/> -->
+  </node>
+
   <!-- IMU HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
   <!-- <node name="imu_sub" pkg="pwm_package" type="IMU.py" output="screen">
   </node> -->

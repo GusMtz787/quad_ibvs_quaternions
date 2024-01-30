@@ -20,6 +20,7 @@ Eigen::Quaternionf attitude_quaternion_des(1.0, 0.0, 0.0, 0.0);
 Eigen::Vector3f attitude_vel_des(0.0, 0.0, 0.0);
 Eigen::Quaternionf attitude_quaternion(1.0, 0.0, 0.0, 0.0);
 Eigen::Vector3f attitude_quaternion_vel(0.0, 0.0, 0.0);
+Eigen::Quaternionf quaternion_roll(0.0, 1.0, 0.0, 0.0);
 
 Eigen::Vector3f ATT_DES_EULER(0.0, 0.0, 0.0);
 Eigen::Vector3f ATT_EULER(0.0, 0.0, 0.0);
@@ -58,58 +59,6 @@ Eigen::Matrix3f J;
 
 float yaw_ddot_des;
 
-///////////////// Callback functions ///////////////////////////////////////////
-void attQuaternionDesCallback(const geometry_msgs::Quaternion::ConstPtr& attQuatD)
-{
-	// attitude_quaternion_des.x() = attQuatD->x;
-	// attitude_quaternion_des.y() = attQuatD->y;
-	// attitude_quaternion_des.z() = attQuatD->z;
-	// attitude_quaternion_des.w() = attQuatD->w;
-
-	// ESTO ES SOLO FIJANDO EL QUATERNION A 0. PON AQUI EL VICOOOOOON
-	attitude_quaternion_des.x() = 0.0;
-	attitude_quaternion_des.y() = 0.0;
-	attitude_quaternion_des.z() = 0.0;
-	attitude_quaternion_des.w() = 1.0;
-}
-
-void attQuaternionCallback(const geometry_msgs::TransformStamped::ConstPtr& attQuat)
-{
-	attitude_quaternion.x() = attQuat->transform.rotation.x;
-	attitude_quaternion.y() = attQuat->transform.rotation.y;
-	attitude_quaternion.z() = attQuat->transform.rotation.z;
-	attitude_quaternion.w() = attQuat->transform.rotation.w;
-
-	ATT_EULER(0) = atan2(2.0 * (attQuat->transform.rotation.w * attQuat->transform.rotation.y + attQuat->transform.rotation.w * attQuat->transform.rotation.x) , 1.0 - 2.0 * (attQuat->transform.rotation.x * attQuat->transform.rotation.x + attQuat->transform.rotation.y * attQuat->transform.rotation.y));
-    ATT_EULER(1) = asin(2.0 * (attQuat->transform.rotation.y * attQuat->transform.rotation.w - attQuat->transform.rotation.z * attQuat->transform.rotation.x));
-    ATT_EULER(2) = atan2(2.0 * (attQuat->transform.rotation.z * attQuat->transform.rotation.w + attQuat->transform.rotation.x * attQuat->transform.rotation.y) , - 1.0 + 2.0 * (attQuat->transform.rotation.w * attQuat->transform.rotation.w + attQuat->transform.rotation.x * attQuat->transform.rotation.x));
-
-}
-
-void attQuatVelCallback(const geometry_msgs::Vector3::ConstPtr& attQuatVel)
-{
-	attitude_quaternion_vel(0) = attQuatVel->x;
-	attitude_quaternion_vel(1) = attQuatVel->y;
-	attitude_quaternion_vel(2) = attQuatVel->z;
-}
-
-void yawddotVelCallback(const std_msgs::Float64::ConstPtr& ydd)
-{
-	yaw_ddot_des = ydd->data;
-}
-
-void yawRateDesired(const std_msgs::Float64::ConstPtr& yaw_rate_des)
-{
-	attitude_vel_des(2) = yaw_rate_des->data;
-}
-
-void ATTITUDE_DES_EULER(const geometry_msgs::Vector3::ConstPtr& ATT_DES_EULER_CALL)
-{
-	ATT_DES_EULER(0) = ATT_DES_EULER_CALL->x;
-	ATT_DES_EULER(1) = ATT_DES_EULER_CALL->y;
-	ATT_DES_EULER(2) = ATT_DES_EULER_CALL->z;
-}
-
 //////////////// General Functions ///////////////////////////
 float sign(float value)
 {
@@ -143,6 +92,60 @@ Eigen::Quaternionf multiplyQuaternionTimesQuaternion(Eigen::Quaternionf q, Eigen
 	quat_result.z() = r.w() * q.z() - r.x() * q.y() + r.y() * q.x() + r.z() * q.w();
 	
 	return quat_result;
+}
+
+///////////////// Callback functions ///////////////////////////////////////////
+void attQuaternionDesCallback(const geometry_msgs::Quaternion::ConstPtr& attQuatD)
+{
+	// attitude_quaternion_des.x() = attQuatD->x;
+	// attitude_quaternion_des.y() = attQuatD->y;
+	// attitude_quaternion_des.z() = attQuatD->z;
+	// attitude_quaternion_des.w() = attQuatD->w;
+
+	// ESTO ES SOLO FIJANDO EL QUATERNION A 0. PON AQUI EL VICOOOOOON
+	attitude_quaternion_des.x() = 0.0;
+	attitude_quaternion_des.y() = 0.0;
+	attitude_quaternion_des.z() = 0.0;
+	attitude_quaternion_des.w() = 1.0;
+}
+
+void attQuaternionCallback(const geometry_msgs::TransformStamped::ConstPtr& attQuat)
+{
+	attitude_quaternion.x() = attQuat->transform.rotation.x;
+	attitude_quaternion.y() = attQuat->transform.rotation.y;
+	attitude_quaternion.z() = attQuat->transform.rotation.z;
+	attitude_quaternion.w() = attQuat->transform.rotation.w;
+
+	attitude_quaternion = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quaternion);
+
+	ATT_EULER(0) = atan2(2.0 * (attitude_quaternion.w() * attitude_quaternion.y() + attitude_quaternion.w() * attitude_quaternion.x()) , 1.0 - 2.0 * (attitude_quaternion.x() * attitude_quaternion.x() + attitude_quaternion.y() * attitude_quaternion.y()));
+    ATT_EULER(1) = asin(2.0 * (attitude_quaternion.y() * attitude_quaternion.w() - attitude_quaternion.z() * attitude_quaternion.x()));
+    ATT_EULER(2) = atan2(2.0 * (attitude_quaternion.z() * attitude_quaternion.w() + attitude_quaternion.x() * attitude_quaternion.y()) , - 1.0 + 2.0 * (attitude_quaternion.w() * attitude_quaternion.w() + attitude_quaternion.x() * attitude_quaternion.x()));
+
+}
+
+void attQuatVelCallback(const geometry_msgs::Vector3::ConstPtr& attQuatVel)
+{
+	attitude_quaternion_vel(0) = attQuatVel->x;
+	attitude_quaternion_vel(1) = attQuatVel->y;
+	attitude_quaternion_vel(2) = attQuatVel->z;
+}
+
+void yawddotVelCallback(const std_msgs::Float64::ConstPtr& ydd)
+{
+	yaw_ddot_des = ydd->data;
+}
+
+void yawRateDesired(const std_msgs::Float64::ConstPtr& yaw_rate_des)
+{
+	attitude_vel_des(2) = yaw_rate_des->data;
+}
+
+void ATTITUDE_DES_EULER(const geometry_msgs::Vector3::ConstPtr& ATT_DES_EULER_CALL)
+{
+	ATT_DES_EULER(0) = ATT_DES_EULER_CALL->x;
+	ATT_DES_EULER(1) = ATT_DES_EULER_CALL->y;
+	ATT_DES_EULER(2) = ATT_DES_EULER_CALL->z;
 }
 
 int main(int argc, char *argv[])
