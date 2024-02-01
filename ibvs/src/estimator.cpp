@@ -82,6 +82,9 @@ void pos_att_Callback(const geometry_msgs::TransformStamped::ConstPtr& poseQUAV)
     attitude_quat.z() = poseQUAV->transform.rotation.z;
     attitude_quat.w() = poseQUAV->transform.rotation.w;
 
+    // Rotate the quaternion 180 degrees alongside the x axis because the vicon world is ENU and we want NED.
+    // So, even though the drone in the vicon is in NED, because of the World vicon reference, the NED of the
+    // drone is rotated 180 with respect to the vicon world ENU. 
     attitude_quat = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quat);
 
 	attitude(0) = atan2(2.0 * (attitude_quat.w() * attitude_quat.y() + attitude_quat.w() * attitude_quat.x()) , 1.0 - 2.0 * (attitude_quat.x() * attitude_quat.x() + attitude_quat.y() * attitude_quat.y()));
@@ -104,7 +107,7 @@ int main(int argc, char *argv[])
     ros::Publisher velocityEstimates_pub = nh.advertise<geometry_msgs::Vector3>("velocity_estimates",100); 
 
     ros::Publisher vicon_position_pub = nh.advertise<geometry_msgs::Vector3>("position_QUAV",100);    
-    ros::Publisher vicon_attitude_pub = nh.advertise<geometry_msgs::Vector3>("attitude_QUAV",100);    
+    ros::Publisher vicon_attitude_pub = nh.advertise<geometry_msgs::Quaternion>("attitude_QUAV",100);    
 
     ros::Publisher attitudeEstimates_pub = nh.advertise<geometry_msgs::Vector3>("attitude_estimates",100); 
     ros::Publisher attVelEstimates_pub = nh.advertise<geometry_msgs::Vector3>("attVel_estimates",100); 
@@ -113,7 +116,7 @@ int main(int argc, char *argv[])
     ros::Publisher estimationError_angular_pub = nh.advertise<geometry_msgs::Vector3>("estimation_error_angular",100);
     
     geometry_msgs::Vector3 position_QUAV_var;
-    geometry_msgs::Vector3 attitude_QUAV_var;
+    geometry_msgs::Quaternion attitude_QUAV_var;
 
     geometry_msgs::Vector3 positionEstimates_var;
     geometry_msgs::Vector3 velocityEstimates_var;
@@ -155,9 +158,10 @@ int main(int argc, char *argv[])
     position_QUAV_var.y = position(1);
     position_QUAV_var.z = position(2);
 
-    attitude_QUAV_var.x = attitude(0);
-    attitude_QUAV_var.y = attitude(1);
-    attitude_QUAV_var.z = attitude(2);
+    attitude_QUAV_var.x = attitude_quat.x();
+    attitude_QUAV_var.y = attitude_quat.y();
+    attitude_QUAV_var.z = attitude_quat.z();
+    attitude_QUAV_var.w = attitude_quat.w();
 
     positionEstimates_var.x = pos_est(0);
     positionEstimates_var.y = pos_est(1);
@@ -231,6 +235,15 @@ int main(int argc, char *argv[])
             att_est(i) = att_est(i) + x1_dot(3+i) * step;
 
         }
+
+        position_QUAV_var.x = position(0);
+        position_QUAV_var.y = position(1);
+        position_QUAV_var.z = position(2);
+
+        attitude_QUAV_var.x = attitude_quat.x();
+        attitude_QUAV_var.y = attitude_quat.y();
+        attitude_QUAV_var.z = attitude_quat.z();
+        attitude_QUAV_var.w = attitude_quat.w();
 
         positionEstimates_var.x = pos_est(0);
         positionEstimates_var.y = pos_est(1);

@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 	ros::Rate loop_rate(100);
 	
 	ros::Subscriber desired_att_quaternions_sub = nh.subscribe("desired_attitude_quaternion",100, &attQuaternionDesCallback);
-	ros::Subscriber quad_attitude_quaternions_sub = nh.subscribe("vicon/QuadGus/QuadGus",100, &attQuaternionCallback);
+	ros::Subscriber quad_attitude_quaternions_sub = nh.subscribe("attitude_QUAV",100, &attQuaternionCallback);
 	ros::Subscriber quad_attitude_velocity_sub = nh.subscribe("quad_attitude_velocity_quaternion",100, &attQuatVelCallback);
 	ros::Subscriber yaw_ddot_des_sub = nh.subscribe("yaw_ddot_desired",100, &yawddotVelCallback);
 	ros::Subscriber yaw_rate_desired_sub = nh.subscribe("yaw_rate_desired",100, &yawRateDesired);
