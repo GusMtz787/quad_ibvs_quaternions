@@ -334,6 +334,7 @@ int main(int argc, char *argv[])
 
     imgFeat_des << 0,0,1,0;
 
+    // Controller variables initialization
     xi_1 << 20, 20, 6, 8;
     lambda << 2, 2, 2, 2;
     xi_2 << 3, 3, 3, 10;
@@ -377,14 +378,7 @@ int main(int argc, char *argv[])
     //ros::Duration(0.01).sleep();
     ros::Duration(2.05).sleep();
     
-    while(ros::ok())
-    {   
-        // imgFeatLinear << imgFeat(0),imgFeat(1),imgFeat(2); 
-        // tgt_vel_VF = (Ryaw(yaw).transpose()) * tgt_vel;
-        // quad_vel_VF = Rtp(roll,pitch) * quad_quaternions_velocity;
-        // yawVel_e3 << 0,0,quad_attitude_velocity(2);
-        // imgFeatLinear_dot = -skewMatrix(yawVel_e3) * imgFeatLinear - (1/zD) * quad_vel_VF + (1/zD) * tgt_vel_VF;
-        // std::cout << "imgFeatLinear_dot: " << imgFeatLinear_dot << '\n';
+    while(ros::ok()) {   
         
         imgFeatLinear << imgFeat(0),imgFeat(1),imgFeat(2); 
         tgt_vel_VF = rotate_quaternion(tgt_vel, attitude_z_quaternion.conjugate());

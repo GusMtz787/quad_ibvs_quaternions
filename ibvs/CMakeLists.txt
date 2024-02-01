@@ -46,6 +46,9 @@ add_executable(video_publisher_node src/image_publisher.cpp)
 target_link_libraries(video_publisher_node ${catkin_LIBRARIES})
 target_link_libraries(video_publisher_node  ${OpenCV_LIBRARIES})
 
+add_executable(estimation_node src/estimator.cpp)
+target_link_libraries(estimation_node ${catkin_LIBRARIES})
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
