@@ -103,12 +103,18 @@ int main(int argc, char *argv[])
     ros::Publisher positionEstimates_pub = nh.advertise<geometry_msgs::Vector3>("position_estimates",100);    
     ros::Publisher velocityEstimates_pub = nh.advertise<geometry_msgs::Vector3>("velocity_estimates",100); 
 
+    ros::Publisher vicon_position_pub = nh.advertise<geometry_msgs::Vector3>("position_QUAV",100);    
+    ros::Publisher vicon_attitude_pub = nh.advertise<geometry_msgs::Vector3>("attitude_QUAV",100);    
+
     ros::Publisher attitudeEstimates_pub = nh.advertise<geometry_msgs::Vector3>("attitude_estimates",100); 
     ros::Publisher attVelEstimates_pub = nh.advertise<geometry_msgs::Vector3>("attVel_estimates",100); 
 
     ros::Publisher estimationError_linear_pub = nh.advertise<geometry_msgs::Vector3>("estimation_error_linear",100);
     ros::Publisher estimationError_angular_pub = nh.advertise<geometry_msgs::Vector3>("estimation_error_angular",100);
     
+    geometry_msgs::Vector3 position_QUAV_var;
+    geometry_msgs::Vector3 attitude_QUAV_var;
+
     geometry_msgs::Vector3 positionEstimates_var;
     geometry_msgs::Vector3 velocityEstimates_var;
 
@@ -145,7 +151,13 @@ int main(int argc, char *argv[])
     estimation_error_angular(1) = attitude(1) - att_est(1);
     estimation_error_angular(2) = attitude(2) - att_est(2);
 
+    position_QUAV_var.x = position(0);
+    position_QUAV_var.y = position(1);
+    position_QUAV_var.z = position(2);
 
+    attitude_QUAV_var.x = attitude(0);
+    attitude_QUAV_var.y = attitude(1);
+    attitude_QUAV_var.z = attitude(2);
 
     positionEstimates_var.x = pos_est(0);
     positionEstimates_var.y = pos_est(1);
@@ -171,6 +183,8 @@ int main(int argc, char *argv[])
     estimationError_angular_var.y = estimation_error_angular(1);
     estimationError_angular_var.z = estimation_error_angular(2);
 
+    vicon_position_pub.publish(position_QUAV_var);
+    vicon_attitude_pub.publish(attitude_QUAV_var);
 
     positionEstimates_pub.publish(positionEstimates_var);
     velocityEstimates_pub.publish(velocityEstimates_var);
