@@ -88,21 +88,6 @@ def sender():
                 pwm3.set_duty_cycle(SERVO_ENABLE)
                 pwm4.set_duty_cycle(SERVO_ENABLE)
 
-            # count = 0
-            # while (count < 2000 and not rospy.is_shutdown()):
-            #     pwm1.set_duty_cycle(SERVO_MAX)
-            #     pwm2.set_duty_cycle(SERVO_MAX)
-            #     pwm3.set_duty_cycle(SERVO_MAX)
-            #     pwm4.set_duty_cycle(SERVO_MAX)
-            #     count = count + 1
-            # count = 0
-            # while (count < 2000 and not rospy.is_shutdown()):
-            #     pwm1.set_duty_cycle(SERVO_MIN)
-            #     pwm2.set_duty_cycle(SERVO_MIN)
-            #     pwm3.set_duty_cycle(SERVO_MIN)
-            #     pwm4.set_duty_cycle(SERVO_MIN)
-            #     count = count + 1
-
 if __name__ == '__main__':
     
     navio2.util.check_apm() # Check ardupilot is NOT running

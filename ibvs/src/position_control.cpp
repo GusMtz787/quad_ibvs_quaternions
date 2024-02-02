@@ -322,9 +322,9 @@ int main(int argc, char *argv[])
     ros::Subscriber tgt_YR_sub = nh.subscribe("tgt_yaw_rate", 100, &tgtYRCallback);
     ros::Subscriber tgt_accel_sub = nh.subscribe("tgt_acceleration", 100, &tgtAccelCallback);
     ros::Subscriber tgt_Yaw_accel_sub = nh.subscribe("tgt_yaw_acceleration", 100, &tgtYawAccelCallback);
-    ros::Subscriber quad_vel_IF_sub = nh.subscribe("linear_velocity_quaternions", 100, &quadVelIFCallback);
-    ros::Subscriber quad_att_quaternion_sub = nh.subscribe("quad_attitude_quaternion", 100, &quadAttQuaternionCallback);
-    ros::Subscriber quad_attQuaternionVel_sub = nh.subscribe("quad_attitude_velocity_quaternion", 100, &quadAttQuaternionVelCallback);
+    ros::Subscriber quad_vel_IF_sub = nh.subscribe("velocity_estimates", 100, &quadVelIFCallback);
+    ros::Subscriber quad_att_quaternion_sub = nh.subscribe("attitude_QUAV", 100, &quadAttQuaternionCallback);
+    ros::Subscriber quad_attQuaternionVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttQuaternionVelCallback);
 
     ros::Publisher ATTITUDE_DESIRED_EULER = nh.advertise<geometry_msgs::Vector3>("ATTITUDE_DESIRED_EULER",100);
     geometry_msgs::Vector3 ATTITUDE_DES_EULER_VAR;
