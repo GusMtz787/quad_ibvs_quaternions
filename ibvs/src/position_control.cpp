@@ -203,18 +203,6 @@ void aValueCallback(const std_msgs::Float64::ConstPtr& aVal)
 	a = aVal->data;
 }
 
-void tgtYRCallback(const std_msgs::Float64::ConstPtr& tgtYR)
-{
-	tgt_YR = tgtYR->data;
-}
-
-void tgtVelCallback(const geometry_msgs::Vector3::ConstPtr& tgtVel)
-{
-	tgt_vel(0) = tgtVel->x;
-    tgt_vel(1) = tgtVel->y;
-    tgt_vel(2) = tgtVel->z;
-}
-
 void quadVelIFCallback(const geometry_msgs::Vector3::ConstPtr& quadVel)
 {
 	quad_quaternions_velocity(0) = quadVel->x;
@@ -267,16 +255,40 @@ void quadAttQuaternionCallback(const geometry_msgs::Quaternion::ConstPtr& quadAt
     // quad_att(2) = euler[2];
 }
 
+void tgtYRCallback(const std_msgs::Float64::ConstPtr& tgtYR)
+{
+	tgt_YR = tgtYR->data;
+
+    tgt_YR = 0;
+}
+
+void tgtVelCallback(const geometry_msgs::Vector3::ConstPtr& tgtVel)
+{
+	tgt_vel(0) = tgtVel->x;
+    tgt_vel(1) = tgtVel->y;
+    tgt_vel(2) = tgtVel->z;
+
+    tgt_vel(0) = 0; 
+    tgt_vel(1) = 0;
+    tgt_vel(2) = 0;
+}
+
 void tgtAccelCallback(const geometry_msgs::Vector3::ConstPtr& tgtAccel)
 {
 	tgt_accel(0) = tgtAccel->x;
     tgt_accel(1) = tgtAccel->y;
     tgt_accel(2) = tgtAccel->z;
+
+    tgt_accel(0) = 0;
+    tgt_accel(1) = 0;
+    tgt_accel(2) = 0;
 }
 
 void tgtYawAccelCallback(const std_msgs::Float64::ConstPtr& tgtYawAccel)
 {
 	tgt_YAccel = tgtYawAccel->data;
+
+	tgt_YAccel = 0;
 }
 
 /////////////////////////////////Main Program//////////////////////////
@@ -383,8 +395,8 @@ int main(int argc, char *argv[])
         imgFeatLinear << imgFeat(0),imgFeat(1),imgFeat(2); 
         tgt_vel_VF = rotate_quaternion(tgt_vel, attitude_z_quaternion.conjugate());
         quad_vel_VF = rotate_quaternion(quad_quaternions_velocity, attitude_z_quaternion.conjugate());
-        std::cout << "QUAD velocity in IF: " << quad_quaternions_velocity << '\n';
-        std::cout << "QUAD velocity in VF: " << quad_vel_VF << '\n';
+        // std::cout << "QUAD velocity in IF: " << quad_quaternions_velocity << '\n';
+        // std::cout << "QUAD velocity in VF: " << quad_vel_VF << '\n';
         yawVel_e3 << 0,0,quad_attitude_velocity(2);
         imgFeatLinear_dot = -skewMatrix(yawVel_e3) * imgFeatLinear - (1/zD) * quad_vel_VF + (1/zD) * tgt_vel_VF;
         //std::cout << "imgFeatLinear_dot: " << imgFeatLinear_dot << '\n';
@@ -446,10 +458,10 @@ int main(int argc, char *argv[])
 
         //Quad's virtual frame dynamics 
         quad_accel_VF << ibvs_ctrl_input(0), ibvs_ctrl_input(1), ibvs_ctrl_input(2); 
-        std::cout << "Quad accelerations VF: " << quad_accel_VF << '\n';
+        // std::cout << "Quad accelerations VF: " << quad_accel_VF << '\n';
         quad_linear_forces_VF = (quad_mass * quad_accel_VF) + (quad_mass * skewMatrix(yawVel_e3)) * quad_vel_VF;
         //quad_linear_forces_VF = {1.0, 0.0, 0.0};
-        std::cout << "Quad linear forces VF: " << quad_linear_forces_VF << '\n';
+        // std::cout << "Quad linear forces VF: " << quad_linear_forces_VF << '\n';
         //////////////////Thrust///////////////////////////////
         thrust = ((e3 * (gravity * quad_mass)) - quad_linear_forces_VF).norm();
         if (thrust > 30)
@@ -496,8 +508,8 @@ int main(int argc, char *argv[])
         // First rotate the forces to the inertial frame 
         Eigen::Vector3f quad_linear_forces_IF = rotate_quaternion(quad_linear_forces_VF, attitude_quaternion);
         quad_linear_forces_IF = (e3 * (gravity * quad_mass)) + quad_linear_forces_IF;
-        std::cout << "Virtual linear forces vector in IF: " << std::endl;
-        std::cout << quad_linear_forces_IF << std::endl;
+        // std::cout << "Virtual linear forces vector in IF: " << std::endl;
+        // std::cout << quad_linear_forces_IF << std::endl;
         nu = quad_linear_forces_IF.normalized();
         // quad_linear_forces_VF = (e3 * (gravity * quad_mass)) + quad_linear_forces_VF;
         // std::cout << "Virtual linear forces vector in VF: " << std::endl;
@@ -526,8 +538,8 @@ int main(int argc, char *argv[])
             attitude_desired_quaternion_x_y.z() = imaginary_part(2);
         }
 
-        std::cout << "Dot product of nu and nz: " << nu.dot(nz) << std::endl;
-        std::cout << "Cross profuct of nu and nz: " << cross_product << std::endl;
+        // std::cout << "Dot product of nu and nz: " << nu.dot(nz) << std::endl;
+        // std::cout << "Cross profuct of nu and nz: " << cross_product << std::endl;
 
         attitude_desired_quaternion = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x_y, attitude_desired_quaternion_z);
         // attitude_desired_quaternion_x_y = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x, attitude_desired_quaternion_y);
@@ -582,6 +594,15 @@ int main(int argc, char *argv[])
         desired_attitude_quaternion_var.x = attitude_desired_quaternion.x();
         desired_attitude_quaternion_var.y = attitude_desired_quaternion.y();
         desired_attitude_quaternion_var.z = attitude_desired_quaternion.z();
+
+        tf::Quaternion test_q(attitude_desired_quaternion.x(), attitude_desired_quaternion.y(), attitude_desired_quaternion.z(), attitude_desired_quaternion.w());
+        tf::Matrix3x3 m(test_q);
+        Eigen::Vector3d euler(0.0, 0.0, 0.0);
+        m.getRPY(euler[0], euler[1], euler[2]);
+        std::cout << "Desired attitude (Euler): " << std::endl;
+        std::cout << euler[0] << std::endl;
+        std::cout << euler[1] << std::endl;
+        std::cout << euler[2] << std::endl;
         
         // Yaw rate desired
         yaw_rate_desired_var.data = yawRate_desired;

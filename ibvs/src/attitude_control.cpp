@@ -97,24 +97,24 @@ Eigen::Quaternionf multiplyQuaternionTimesQuaternion(Eigen::Quaternionf q, Eigen
 ///////////////// Callback functions ///////////////////////////////////////////
 void attQuaternionDesCallback(const geometry_msgs::Quaternion::ConstPtr& attQuatD)
 {
-	// attitude_quaternion_des.x() = attQuatD->x;
-	// attitude_quaternion_des.y() = attQuatD->y;
-	// attitude_quaternion_des.z() = attQuatD->z;
-	// attitude_quaternion_des.w() = attQuatD->w;
+	attitude_quaternion_des.x() = attQuatD->x;
+	attitude_quaternion_des.y() = attQuatD->y;
+	attitude_quaternion_des.z() = attQuatD->z;
+	attitude_quaternion_des.w() = attQuatD->w;
 
-	// ESTO ES SOLO FIJANDO EL QUATERNION A 0. PON AQUI EL VICOOOOOON
-	attitude_quaternion_des.x() = 0.0;
-	attitude_quaternion_des.y() = 0.0;
-	attitude_quaternion_des.z() = 0.0;
-	attitude_quaternion_des.w() = 1.0;
+	// // ESTO ES SOLO FIJANDO EL QUATERNION A 0. PON AQUI EL VICOOOOOON
+	// attitude_quaternion_des.x() = 0.0;
+	// attitude_quaternion_des.y() = 0.0;
+	// attitude_quaternion_des.z() = 0.0;
+	// attitude_quaternion_des.w() = 1.0;
 }
 
-void attQuaternionCallback(const geometry_msgs::TransformStamped::ConstPtr& attQuat)
+void attQuaternionCallback(const geometry_msgs::Quaternion::ConstPtr& attQuat)
 {
-	attitude_quaternion.x() = attQuat->transform.rotation.x;
-	attitude_quaternion.y() = attQuat->transform.rotation.y;
-	attitude_quaternion.z() = attQuat->transform.rotation.z;
-	attitude_quaternion.w() = attQuat->transform.rotation.w;
+	attitude_quaternion.x() = attQuat->x;
+	attitude_quaternion.y() = attQuat->y;
+	attitude_quaternion.z() = attQuat->z;
+	attitude_quaternion.w() = attQuat->w;
 
 	attitude_quaternion = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quaternion);
 

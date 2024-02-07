@@ -14,9 +14,12 @@
 #include <eigen3/Eigen/Dense>
 
 Eigen::Vector3f position(0,0,0);
+Eigen::Vector3f position_TGT(0,0,0);
 Eigen::Quaternionf attitude_quat(1.0, 0.0, 0.0, 0.0);
+Eigen::Quaternionf attitude_quat_TGT(1.0, 0.0, 0.0, 0.0);
 Eigen::Quaternionf quaternion_roll(0.0, 1.0, 0.0, 0.0);
 Eigen::Vector3f attitude(0,0,0);
+Eigen::Vector3f attitude_TGT(0,0,0);
 
 Eigen::VectorXf G1(6);
 Eigen::VectorXf G2(6);
@@ -93,6 +96,28 @@ void pos_att_Callback(const geometry_msgs::TransformStamped::ConstPtr& poseQUAV)
 
 }
 
+void vicon_pos_Callback(const geometry_msgs::TransformStamped::ConstPtr& poseTGT)
+{
+    // position(0) = poseQUAV->transform.translation.x;
+    // position(1) = poseQUAV->transform.translation.y;
+    // position(2) = poseQUAV->transform.translation.z;
+
+    // attitude_quat.x() = poseQUAV->transform.rotation.x;
+    // attitude_quat.y() = poseQUAV->transform.rotation.y;
+    // attitude_quat.z() = poseQUAV->transform.rotation.z;
+    // attitude_quat.w() = poseQUAV->transform.rotation.w;
+
+    // // Rotate the quaternion 180 degrees alongside the x axis because the vicon world is ENU and we want NED.
+    // // So, even though the drone in the vicon is in NED, because of the World vicon reference, the NED of the
+    // // drone is rotated 180 with respect to the vicon world ENU. 
+    // attitude_quat = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quat);
+
+	// attitude(0) = atan2(2.0 * (attitude_quat.w() * attitude_quat.y() + attitude_quat.w() * attitude_quat.x()) , 1.0 - 2.0 * (attitude_quat.x() * attitude_quat.x() + attitude_quat.y() * attitude_quat.y()));
+    // attitude(1) = asin(2.0 * (attitude_quat.y() * attitude_quat.w() - attitude_quat.z() * attitude_quat.x()));
+    // attitude(2) = atan2(2.0 * (attitude_quat.z() * attitude_quat.w() + attitude_quat.x() * attitude_quat.y()) , - 1.0 + 2.0 * (attitude_quat.w() * attitude_quat.w() + attitude_quat.x() * attitude_quat.x()));
+
+}
+
 int main(int argc, char *argv[])
 {
 	ros::init(argc, argv, "fx_estimator");
@@ -101,6 +126,7 @@ int main(int argc, char *argv[])
 
     //Subscribers and publishers
     ros::Subscriber quav_pos_sub = nh.subscribe("vicon/QuadGus/QuadGus", 100, &pos_att_Callback);
+    ros::Subscriber tgt_pos_sub = nh.subscribe("vicon/TGT/TGT", 100, &vicon_pos_Callback);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     ros::Publisher positionEstimates_pub = nh.advertise<geometry_msgs::Vector3>("position_estimates",100);    
@@ -268,6 +294,9 @@ int main(int argc, char *argv[])
         estimationError_angular_var.x = estimation_error_angular(0);
         estimationError_angular_var.y = estimation_error_angular(1);
         estimationError_angular_var.z = estimation_error_angular(2);
+
+        vicon_position_pub.publish(position_QUAV_var);
+        vicon_attitude_pub.publish(attitude_QUAV_var);
 
         positionEstimates_pub.publish(positionEstimates_var);
         velocityEstimates_pub.publish(velocityEstimates_var);

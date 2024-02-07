@@ -1,29 +1,33 @@
 <launch>
+
+  <!-- RADIO CONTROL NODE -->
+  <node name="radioControl_pub" pkg="pwm_package" type="RadioControl.py">
+    <!-- You can add any additional parameters here -->
+    <!-- <param name="param_name" value="param_value"/> -->
+  </node>
   
   <!-- ATTITUDE CONTROL NODE -->
   <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node" >
   </node>
   
   <!-- POSITION CONTROL NODE -->
-  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" >
+  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" output="screen">
   </node>
   
   <!-- IMAGE ACQUISITION NODE -->
-  <node name="image_acquisition" pkg="ibvs" type="video_publisher_node">
+  <node name="image_acquisition" pkg="ibvs" type="video_publisher_node" >
   </node>
   
   <!-- PWM HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
-  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" output="screen">
+  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" >
   </node>
   
   <!-- PWM CALCULATION NODE -->
   <node name="pwm_pub" pkg="ibvs" type="pwm_node" >
   </node>
 
-  <!-- RADIO CONTROL NODE -->
-  <node name="radioControl_pub" pkg="pwm_package" type="RadioControl.py" output="screen">
-    <!-- You can add any additional parameters here -->
-    <!-- <param name="param_name" value="param_value"/> -->
+  <!-- ESTIMATOR NODE -->
+  <node name="estimator" pkg="ibvs" type="estimation_node" >
   </node>
 
   <!-- IMU HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
