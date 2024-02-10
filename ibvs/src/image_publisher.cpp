@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 	ros::init(argc, argv, "image_features");
 	ros::NodeHandle nh;
     image_transport::ImageTransport it(nh);
-	ros::Rate loop_rate(50);
+	ros::Rate loop_rate(100);
 
     //ROS publishers and subscribers
 	ros::Publisher im_feat_pub = nh.advertise<geometry_msgs::Quaternion>("ImFeat_vector",100);
@@ -218,8 +218,8 @@ int main(int argc, char *argv[])
     cap.set(cv::CAP_PROP_CONVERT_RGB, false);
 
     // Set the desired image size
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, 410);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 308);
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
 
 	// Set the desired frame rate (adjust as needed)
     cap.set(cv::CAP_PROP_FPS, 80);  // Set the frame rate to 30 FPS

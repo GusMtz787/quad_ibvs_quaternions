@@ -220,15 +220,76 @@ int main(int argc, char *argv[])
 		q_error = multiplyQuaternionTimesQuaternion(attitude_quaternion.conjugate(), attitude_quaternion_des);
 		q_error = q_error.normalized();
 
-		if (q_error.w() >= 1.0) {
+		if (q_error.w() >= 1.0 || (attitude_quaternion_des.w() == 1.0 && attitude_quaternion_des.x() == 0.0 && attitude_quaternion_des.y() == 0.0 && attitude_quaternion_des.z() == 0.0)) {
 			error(0) = 0.0;
 			error(1) = 0.0;
 			error(2) = 0.0;
+
+			error_dot << 0.0, 0.0, 0.0;
+			tau << 0.0, 0.0, 0.0;
 		}
 		else {
 			error(0) = 2.0 * ((q_error.x() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
 			error(1) = 2.0 * ((q_error.y() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
 			error(2) = 2.0 * ((q_error.z() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
+
+			error_dot = attitude_vel_des - attitude_quaternion_vel;
+
+			for(int i = 0; i <= 2; i++) {	
+
+				ss(i) = error(i) + xi_1(i) * powf(std::abs(error(i)),lambda(i)) * sign(error(i)) + xi_2(i) * powf(std::abs(error_dot(i)),(varpi(i)/vartheta(i))) * sign(error_dot(i));
+				
+				// *************** Traditional adaptive law ***************
+				// if(K1(i) > kmin(i))	
+				// {
+				// 	K1_dot(i) = k_reg(i) * sign(std::abs(ss(i))-mu(i));
+				// }
+				// else
+				// {
+				// 	K1_dot(i) = kmin(i);
+				// }
+				
+				// K1(i) = K1(i) + step_size * K1_dot(i); //New value of K1
+				// asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
+
+				//*************** Modified adaptive law ***************
+				K1_dot(i) = sqrt(alpha(i)) * sqrt(std::abs(ss(i))) - sqrt(beta(i)) * pow(K1(i),2);
+
+				K1(i) = K1(i) + step_size*K1_dot(i);
+				asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (pow(K1(i),2) / 2) * ss(i);
+			}
+
+			std::cout << "Quat of error" << std::endl;
+			std::cout << q_error.w() << std::endl;
+			std::cout << q_error.x() << std::endl;
+			std::cout << q_error.y() << std::endl;
+			std::cout << q_error.z() << std::endl;
+			std::cout << "Error quaternions" << std::endl;
+			std::cout << error(0) << std::endl;
+			std::cout << error(1) << std::endl;
+			std::cout << error(2) << std::endl;
+
+			Eigen::Vector3f angular_acceleration_desired(0.0, 0.0, yaw_ddot_des);
+			Eigen::Vector3f division_varpi_vartheta(0.0, 0.0, 0.0);
+			division_varpi_vartheta << varpi(0)/vartheta(0), varpi(1)/vartheta(1), varpi(2)/vartheta(2);
+			Eigen::Vector3f division_one_over_xi2(0.0, 0.0, 0.0);
+			division_one_over_xi2 << 1 / (xi_2(0) * division_varpi_vartheta(0)), 1 / (xi_2(1) * division_varpi_vartheta(1)), 1 / (xi_2(2) * division_varpi_vartheta(2));
+			Eigen::Vector3f fourth_term(0.0, 0.0, 0.0);
+			fourth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2));
+			Eigen::Vector3f fifth_term(0.0, 0.0, 0.0);
+			fifth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)) * xi_1(0) * lambda(0) * powf(abs(error(0)), lambda(0) - 1), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)) * xi_1(1) * lambda(1) * powf(abs(error(1)), lambda(1) - 1), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2)) * xi_1(2) * lambda(2) * powf(abs(error(2)), lambda(2) - 1);
+
+			tau = J * (angular_acceleration_desired + J.inverse() * (attitude_quaternion_vel.cross(J * attitude_quaternion_vel)) - asmc + fourth_term + fifth_term);
+
+			// Saturate values (torque should not be bigger than 0.025 Nm)
+			for (int i = 0; i < tau.size(); i++) {
+				if (tau[i] > 0.025) {
+					tau[i] = 0.025;
+				}
+				else if (tau[i] < -0.025) {
+					tau[i] = -0.025;
+				}
+			}
 		}
 
 		//error = ATT_DES_EULER - ATT_EULER;
@@ -250,64 +311,6 @@ int main(int argc, char *argv[])
         // std::cout << euler2[0] << std::endl;
         // std::cout << euler2[1] << std::endl;
         // std::cout << euler2[2] << std::endl;
-
-		error_dot = attitude_vel_des - attitude_quaternion_vel;
-
-		for(int i = 0; i <= 2; i++) {	
-
-			ss(i) = error(i) + xi_1(i) * powf(std::abs(error(i)),lambda(i)) * sign(error(i)) + xi_2(i) * powf(std::abs(error_dot(i)),(varpi(i)/vartheta(i))) * sign(error_dot(i));
-			
-			// *************** Traditional adaptive law ***************
-			// if(K1(i) > kmin(i))	
-			// {
-			// 	K1_dot(i) = k_reg(i) * sign(std::abs(ss(i))-mu(i));
-			// }
-			// else
-			// {
-			// 	K1_dot(i) = kmin(i);
-			// }
-			
-			// K1(i) = K1(i) + step_size * K1_dot(i); //New value of K1
-			// asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
-
-			//*************** Modified adaptive law ***************
-			K1_dot(i) = sqrt(alpha(i)) * sqrt(std::abs(ss(i))) - sqrt(beta(i)) * pow(K1(i),2);
-
-            K1(i) = K1(i) + step_size*K1_dot(i);
-            asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (pow(K1(i),2) / 2) * ss(i);
-		}
-
-		std::cout << "Quat of error" << std::endl;
-        std::cout << q_error.w() << std::endl;
-        std::cout << q_error.x() << std::endl;
-        std::cout << q_error.y() << std::endl;
-		std::cout << q_error.z() << std::endl;
-		std::cout << "Error quaternions" << std::endl;
-        std::cout << error(0) << std::endl;
-        std::cout << error(1) << std::endl;
-        std::cout << error(2) << std::endl;
-
-		Eigen::Vector3f angular_acceleration_desired(0.0, 0.0, yaw_ddot_des);
-		Eigen::Vector3f division_varpi_vartheta(0.0, 0.0, 0.0);
-		division_varpi_vartheta << varpi(0)/vartheta(0), varpi(1)/vartheta(1), varpi(2)/vartheta(2);
-		Eigen::Vector3f division_one_over_xi2(0.0, 0.0, 0.0);
-		division_one_over_xi2 << 1 / (xi_2(0) * division_varpi_vartheta(0)), 1 / (xi_2(1) * division_varpi_vartheta(1)), 1 / (xi_2(2) * division_varpi_vartheta(2));
-		Eigen::Vector3f fourth_term(0.0, 0.0, 0.0);
-		fourth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2));
-		Eigen::Vector3f fifth_term(0.0, 0.0, 0.0);
-		fifth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)) * xi_1(0) * lambda(0) * powf(abs(error(0)), lambda(0) - 1), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)) * xi_1(1) * lambda(1) * powf(abs(error(1)), lambda(1) - 1), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2)) * xi_1(2) * lambda(2) * powf(abs(error(2)), lambda(2) - 1);
-
-		tau = J * (angular_acceleration_desired + J.inverse() * (attitude_quaternion_vel.cross(J * attitude_quaternion_vel)) - asmc + fourth_term + fifth_term);
-
-		// Saturate values (torque should not be bigger than 0.025 Nm)
-		for (int i = 0; i < tau.size(); i++) {
-			if (tau[i] > 0.025) {
-				tau[i] = 0.025;
-			}
-			else if (tau[i] < -0.025) {
-				tau[i] = -0.025;
-			}
-    	}
 
 		// tau(0) = Jxx * (-asmc(0) + (((Jyy-Jzz)/Jxx) * attitude_quaternion_vel(1) * attitude_quaternion_vel(2)) + (vartheta(0)/(varpi(0)*xi_2(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi(0)/vartheta(0)))) * (1 + xi_1(0) * lambda(0) * powf(std::abs(error(0)),lambda(0)-1)));
 		// tau(1) = Jyy * (-asmc(1) + (((Jzz-Jxx)/Jyy) * attitude_quaternion_vel(0) * attitude_quaternion_vel(2)) + (vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)));

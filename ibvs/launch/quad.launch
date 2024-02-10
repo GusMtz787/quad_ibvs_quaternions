@@ -11,11 +11,11 @@
   </node>
   
   <!-- POSITION CONTROL NODE -->
-  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" >
+  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" output="screen">
   </node>
   
   <!-- IMAGE ACQUISITION NODE -->
-  <node name="image_acquisition" pkg="ibvs" type="video_publisher_node" output="screen">
+  <node name="image_acquisition" pkg="ibvs" type="video_publisher_node" >
   </node>
   
   <!-- PWM HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
