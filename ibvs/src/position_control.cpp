@@ -423,6 +423,8 @@ int main(int argc, char *argv[])
             error << 0.0, 0.0, 0.0, 0.0;
             error_dot << 0.0, 0.0, 0.0, 0.0;
             ibvs_ctrl_input << 0.0, 0.0, 0.0, 0.0;
+            yawRate_desired = 0.0;
+            yaw_desired = 0.0;
             thrust = quad_mass * gravity;
             attitude_desired_quaternion.w() = 1.0;
             attitude_desired_quaternion.x() = 0.0;

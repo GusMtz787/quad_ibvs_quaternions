@@ -221,14 +221,15 @@ int main(int argc, char *argv[])
 		q_error = q_error.normalized();
 
 		if (q_error.w() >= 1.0 || (attitude_quaternion_des.w() == 1.0 && attitude_quaternion_des.x() == 0.0 && attitude_quaternion_des.y() == 0.0 && attitude_quaternion_des.z() == 0.0)) {
-			error(0) = 0.0;
-			error(1) = 0.0;
-			error(2) = 0.0;
-
+			
+			error << 0.0, 0.0, 0.0;
 			error_dot << 0.0, 0.0, 0.0;
 			tau << 0.0, 0.0, 0.0;
+		
 		}
+		
 		else {
+			
 			error(0) = 2.0 * ((q_error.x() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
 			error(1) = 2.0 * ((q_error.y() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
 			error(2) = 2.0 * ((q_error.z() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
