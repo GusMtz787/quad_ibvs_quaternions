@@ -7,11 +7,11 @@
   </node>
   
   <!-- ATTITUDE CONTROL NODE -->
-  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node" >
+  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node" output="screen">
   </node>
   
   <!-- POSITION CONTROL NODE -->
-  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" output="screen">
+  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node" >
   </node>
   
   <!-- IMAGE ACQUISITION NODE -->

@@ -3,6 +3,7 @@
 #include "sensor_msgs/CompressedImage.h"
 #include "sensor_msgs/image_encodings.h"
 #include <std_msgs/Float64.h>
+#include <std_msgs/Int32.h>
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Quaternion.h>
@@ -15,6 +16,9 @@
 #include <vector>
 //Including Eigen library
 #include <eigen3/Eigen/Dense>
+
+// Declaring global variables
+uint32_t rcMode = 0; // 1 for Visual-servoing guidance, 0 for Vicon guidance. 
 
 Eigen::Quaternionf attitude_quaternion_des(1.0, 0.0, 0.0, 0.0);
 Eigen::Vector3f attitude_vel_des(0.0, 0.0, 0.0);
@@ -31,11 +35,11 @@ Eigen::Quaternionf q_error(1.0, 0.0, 0.0, 0.0);
 
 ////////////////////Sliding surface and ASMC///////////////////
 Eigen::Vector3f ss;
-Eigen::Vector3f xi_1;
-Eigen::Vector3f lambda;
-Eigen::Vector3f xi_2;
-Eigen::Vector3f varpi;
-Eigen::Vector3f vartheta;
+Eigen::Vector3f xi_1_visualServoing;
+Eigen::Vector3f lambda_visualServoing;
+Eigen::Vector3f xi_2_visualServoing;
+Eigen::Vector3f varpi_visualServoing;
+Eigen::Vector3f vartheta_visualServoing;
 Eigen::Vector3f asmc;
 Eigen::Vector3f K1;
 Eigen::Vector3f K1_dot;
@@ -43,8 +47,16 @@ Eigen::Vector3f K2;
 Eigen::Vector3f k_reg;
 Eigen::Vector3f kmin;
 Eigen::Vector3f mu;
-Eigen::Vector3f alpha;
-Eigen::Vector3f beta;
+Eigen::Vector3f alpha_visualServoing;
+Eigen::Vector3f beta_visualServoing;
+
+Eigen::Vector3f xi_1_vicon;
+Eigen::Vector3f lambda_vicon;
+Eigen::Vector3f xi_2_vicon;
+Eigen::Vector3f varpi_vicon;
+Eigen::Vector3f vartheta_vicon;
+Eigen::Vector3f alpha_vicon;
+Eigen::Vector3f beta_vicon;
 
 ////////////////Outputs (Torques)////////////////////
 Eigen::Vector3f tau; //tau_phi, //tau_theta //tau_psi
@@ -148,6 +160,11 @@ void ATTITUDE_DES_EULER(const geometry_msgs::Vector3::ConstPtr& ATT_DES_EULER_CA
 	ATT_DES_EULER(2) = ATT_DES_EULER_CALL->z;
 }
 
+void rcModeCallback(const std_msgs::Int32::ConstPtr& message)
+{
+	rcMode = message->data;
+}
+
 int main(int argc, char *argv[])
 {	
 	ros::init(argc, argv, "attitude_nftasmc");
@@ -159,7 +176,8 @@ int main(int argc, char *argv[])
 	ros::Subscriber quad_attitude_velocity_sub = nh.subscribe("attVel_estimates",100, &attQuatVelCallback);
 	ros::Subscriber yaw_ddot_des_sub = nh.subscribe("yaw_ddot_desired",100, &yawddotVelCallback);
 	ros::Subscriber yaw_rate_desired_sub = nh.subscribe("yaw_rate_desired",100, &yawRateDesired);
-	
+	ros::Subscriber rcMode_sub = nh.subscribe("rcMode", 10, &rcModeCallback);
+
 	geometry_msgs::Vector3 quadTorques;
 	geometry_msgs::Vector3 ss_att;
 	geometry_msgs::Vector3 K1_values;	
@@ -178,32 +196,30 @@ int main(int argc, char *argv[])
 
 	ros::Subscriber ATTITUDE_DESIRED_EULER = nh.subscribe("ATTITUDE_DESIRED_EULER",100, &ATTITUDE_DES_EULER);
 
- 	xi_1 << 10, 10, 6;
-    lambda << 1.8, 1.8, 1.8;
-    xi_2 << 2, 2, 2;
-    varpi << 4, 4, 4;
-    vartheta << 3, 3, 3;
-    K1 << 0, 0, 0;
+    K1 << 0.0, 0.0, 0.0;
+	K1_dot << 0.0, 0.0, 0.0;
+ 	
+	// Controller parameters for Visual-Servoing
+	xi_1_visualServoing << 10, 10, 6;
+    lambda_visualServoing << 1.8, 1.8, 1.8;
+    xi_2_visualServoing << 2, 2, 2;
+    varpi_visualServoing << 4, 4, 4;
+    vartheta_visualServoing << 3, 3, 3;
     // K2 << 0.01, 0.01, 0.01;
     // k_reg << 1, 1, 1;
     // kmin << 2, 2, 1;
     // mu << 0.2, 0.2, 0.2;
-	alpha << 10, 10, 10;
-	beta << 5, 5, 5;
+	alpha_visualServoing << 10, 10, 10;
+	beta_visualServoing << 5, 5, 5;
 
-	// THESE WORK FOR A STATIC ARUCO MARKER
-	// xi_1 << 6, 6, 6;
-    // lambda << 1.8, 1.8, 1.8;
-    // xi_2 << 2, 2, 2;
-    // varpi << 4, 4, 4;
-    // vartheta << 3, 3, 3;
-    // K1 << 0, 0, 0;
-    // // K2 << 0.01, 0.01, 0.01;
-    // // k_reg << 1, 1, 1;
-    // // kmin << 2, 2, 1;
-    // // mu << 0.2, 0.2, 0.2;
-	// alpha << 10, 10, 10;
-	// beta << 5, 5, 5;
+	// Controller parameters for Vicon
+	xi_1_vicon << 10, 10, 6;
+    lambda_vicon << 1.8, 1.8, 1.8;
+    xi_2_vicon << 2, 2, 2;
+    varpi_vicon << 4, 4, 4;
+    vartheta_vicon << 3, 3, 3;
+	alpha_vicon << 10, 10, 10;
+	beta_vicon << 5, 5, 5;
 
 	J << Jxx, 0, 0,
 		0, Jyy, 0,
@@ -217,109 +233,119 @@ int main(int argc, char *argv[])
 
 	while(ros::ok()) {
 
-		q_error = multiplyQuaternionTimesQuaternion(attitude_quaternion.conjugate(), attitude_quaternion_des);
-		q_error = q_error.normalized();
+		if (rcMode == 1) {
 
-		if (q_error.w() >= 1.0 || (attitude_quaternion_des.w() == 1.0 && attitude_quaternion_des.x() == 0.0 && attitude_quaternion_des.y() == 0.0 && attitude_quaternion_des.z() == 0.0)) {
+			q_error = multiplyQuaternionTimesQuaternion(attitude_quaternion.conjugate(), attitude_quaternion_des);
+			q_error = q_error.normalized();
+
+			if (q_error.w() >= 1.0 || (attitude_quaternion_des.w() == 1.0 && attitude_quaternion_des.x() == 0.0 && attitude_quaternion_des.y() == 0.0 && attitude_quaternion_des.z() == 0.0)) {
+				
+				error << 0.0, 0.0, 0.0;
+				error_dot << 0.0, 0.0, 0.0;
+				tau << 0.0, 0.0, 0.0;
 			
-			error << 0.0, 0.0, 0.0;
-			error_dot << 0.0, 0.0, 0.0;
-			tau << 0.0, 0.0, 0.0;
-		
+			}
+			
+			else {
+
+				error(0) = 2.0 * ((q_error.x() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
+				error(1) = 2.0 * ((q_error.y() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
+				error(2) = 2.0 * ((q_error.z() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
+
+				error_dot = attitude_vel_des - attitude_quaternion_vel;
+
+				for(int i = 0; i <= 2; i++) {	
+
+					ss(i) = error(i) + xi_1_visualServoing(i) * powf(std::abs(error(i)),lambda_visualServoing(i)) * sign(error(i)) + xi_2_visualServoing(i) * powf(std::abs(error_dot(i)),(varpi_visualServoing(i)/vartheta_visualServoing(i))) * sign(error_dot(i));
+					
+					// *************** Traditional adaptive law ***************
+					// if(K1(i) > kmin(i))	
+					// {
+					// 	K1_dot(i) = k_reg(i) * sign(std::abs(ss(i))-mu(i));
+					// }
+					// else
+					// {
+					// 	K1_dot(i) = kmin(i);
+					// }
+					
+					// K1(i) = K1(i) + step_size * K1_dot(i); //New value of K1
+					// asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
+
+					//*************** Modified adaptive law ***************
+					K1_dot(i) = sqrt(alpha_visualServoing(i)) * sqrt(std::abs(ss(i))) - sqrt(beta_visualServoing(i)) * pow(K1(i),2);
+
+					K1(i) = K1(i) + step_size*K1_dot(i);
+					asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (pow(K1(i),2) / 2) * ss(i);
+				}
+
+				std::cout << "Quat of error" << std::endl;
+				std::cout << q_error.w() << std::endl;
+				std::cout << q_error.x() << std::endl;
+				std::cout << q_error.y() << std::endl;
+				std::cout << q_error.z() << std::endl;
+				std::cout << "Error quaternions" << std::endl;
+				std::cout << error(0) << std::endl;
+				std::cout << error(1) << std::endl;
+				std::cout << error(2) << std::endl;
+
+				Eigen::Vector3f angular_acceleration_desired(0.0, 0.0, yaw_ddot_des);
+				Eigen::Vector3f division_varpi_vartheta(0.0, 0.0, 0.0);
+				division_varpi_vartheta << varpi_visualServoing(0)/vartheta_visualServoing(0), varpi_visualServoing(1)/vartheta_visualServoing(1), varpi_visualServoing(2)/vartheta_visualServoing(2);
+				Eigen::Vector3f division_one_over_xi2(0.0, 0.0, 0.0);
+				division_one_over_xi2 << 1 / (xi_2_visualServoing(0) * division_varpi_vartheta(0)), 1 / (xi_2_visualServoing(1) * division_varpi_vartheta(1)), 1 / (xi_2_visualServoing(2) * division_varpi_vartheta(2));
+				Eigen::Vector3f fourth_term(0.0, 0.0, 0.0);
+				fourth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2));
+				Eigen::Vector3f fifth_term(0.0, 0.0, 0.0);
+				fifth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)) * xi_1_visualServoing(0) * lambda_visualServoing(0) * powf(abs(error(0)), lambda_visualServoing(0) - 1), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)) * xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(abs(error(1)), lambda_visualServoing(1) - 1), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2)) * xi_1_visualServoing(2) * lambda_visualServoing(2) * powf(abs(error(2)), lambda_visualServoing(2) - 1);
+
+				tau = J * (angular_acceleration_desired + J.inverse() * (attitude_quaternion_vel.cross(J * attitude_quaternion_vel)) - asmc + fourth_term + fifth_term);
+
+				// Saturate values (torque should not be bigger than 0.025 Nm)
+				for (int i = 0; i < tau.size(); i++) {
+					if (tau[i] > 0.025) {
+						tau[i] = 0.025;
+					}
+					else if (tau[i] < -0.025) {
+						tau[i] = -0.025;
+					}
+				}
+			}
+
+			//error = ATT_DES_EULER - ATT_EULER;
+
+			// tf::Quaternion test_attitude_q(attitude_quaternion.x(), attitude_quaternion.y(), attitude_quaternion.z(), attitude_quaternion.w());
+			// tf::Matrix3x3 m(test_attitude_q);
+			// Eigen::Vector3d euler(0.0, 0.0, 0.0);
+			// m.getRPY(euler[0], euler[1], euler[2]);
+			// std::cout << "Angles UAV" << std::endl;
+			// std::cout << euler[0] << std::endl;
+			// std::cout << euler[1] << std::endl;
+			// std::cout << euler[2] << std::endl;
+			
+			// tf::Quaternion test_attitude_des_q(attitude_quaternion_des.x(), attitude_quaternion_des.y(), attitude_quaternion_des.z(), attitude_quaternion_des.w());
+			// tf::Matrix3x3 m2(test_attitude_des_q);
+			// Eigen::Vector3d euler2(0.0, 0.0, 0.0);
+			// m2.getRPY(euler2[0], euler2[1], euler2[2]);
+			// std::cout << "Angles desired" << std::endl;
+			// std::cout << euler2[0] << std::endl;
+			// std::cout << euler2[1] << std::endl;
+			// std::cout << euler2[2] << std::endl;
+
+			// tau(0) = Jxx * (-asmc(0) + (((Jyy-Jzz)/Jxx) * attitude_quaternion_vel(1) * attitude_quaternion_vel(2)) + (vartheta_visualServoing(0)/(varpi_visualServoing(0)*xi_2_visualServoing(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi_visualServoing(0)/vartheta_visualServoing(0)))) * (1 + xi_1_visualServoing(0) * lambda_visualServoing(0) * powf(std::abs(error(0)),lambda_visualServoing(0)-1)));
+			// tau(1) = Jyy * (-asmc(1) + (((Jzz-Jxx)/Jyy) * attitude_quaternion_vel(0) * attitude_quaternion_vel(2)) + (vartheta_visualServoing(1)/(varpi_visualServoing(1)*xi_2_visualServoing(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi_visualServoing(1)/vartheta_visualServoing(1)))) * (1 + xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(std::abs(error(1)),lambda_visualServoing(1)-1)));
+			// tau(2) = Jzz * (-asmc(2) + (((Jxx-Jyy)/Jzz) * attitude_quaternion_vel(0) * attitude_quaternion_vel(1)) + (vartheta_visualServoing(2)/(varpi_visualServoing(2)*xi_2_visualServoing(2))) * sign(error_dot(2)) * powf(std::abs(error_dot(2)),(2-(varpi_visualServoing(2)/vartheta_visualServoing(2)))) * (1 + xi_1_visualServoing(2) * lambda_visualServoing(2) * powf(std::abs(error(2)),lambda_visualServoing(2)-1)));
+
+			// tau(0) = Jxx * (-asmc(0) + (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) + (vartheta_visualServoing(0)/(varpi_visualServoing(0)*xi_2_visualServoing(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi_visualServoing(0)/vartheta_visualServoing(0)))) * (1 + xi_1_visualServoing(0) * lambda_visualServoing(0) * powf(std::abs(error(0)),lambda_visualServoing(0)-1)));
+			// tau(1) = Jyy * (-asmc(1) + (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) + (vartheta_visualServoing(1)/(varpi_visualServoing(1)*xi_2_visualServoing(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi_visualServoing(1)/vartheta_visualServoing(1)))) * (1 + xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(std::abs(error(1)),lambda_visualServoing(1)-1)));
+			// tau(2) = Jzz * (-asmc(2) + (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) + (vartheta_visualServoing(2)/(varpi_visualServoing(2)*xi_2_visualServoing(2))) * sign(error_dot(2)) * powf(std::abs(error_dot(2)),(2-(varpi_visualServoing(2)/vartheta_visualServoing(2)))) * (1 + xi_1_visualServoing(2) * lambda_visualServoing(2) * powf(std::abs(error(2)),lambda_visualServoing(2)-1)));
+
 		}
-		
+
 		else {
 			
-			error(0) = 2.0 * ((q_error.x() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
-			error(1) = 2.0 * ((q_error.y() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
-			error(2) = 2.0 * ((q_error.z() / sqrt(powf(q_error.x(), 2.0) + powf(q_error.y(), 2.0) + powf(q_error.z(), 2.0))) * acos(q_error.w()));
-
-			error_dot = attitude_vel_des - attitude_quaternion_vel;
-
-			for(int i = 0; i <= 2; i++) {	
-
-				ss(i) = error(i) + xi_1(i) * powf(std::abs(error(i)),lambda(i)) * sign(error(i)) + xi_2(i) * powf(std::abs(error_dot(i)),(varpi(i)/vartheta(i))) * sign(error_dot(i));
-				
-				// *************** Traditional adaptive law ***************
-				// if(K1(i) > kmin(i))	
-				// {
-				// 	K1_dot(i) = k_reg(i) * sign(std::abs(ss(i))-mu(i));
-				// }
-				// else
-				// {
-				// 	K1_dot(i) = kmin(i);
-				// }
-				
-				// K1(i) = K1(i) + step_size * K1_dot(i); //New value of K1
-				// asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
-
-				//*************** Modified adaptive law ***************
-				K1_dot(i) = sqrt(alpha(i)) * sqrt(std::abs(ss(i))) - sqrt(beta(i)) * pow(K1(i),2);
-
-				K1(i) = K1(i) + step_size*K1_dot(i);
-				asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (pow(K1(i),2) / 2) * ss(i);
-			}
-
-			std::cout << "Quat of error" << std::endl;
-			std::cout << q_error.w() << std::endl;
-			std::cout << q_error.x() << std::endl;
-			std::cout << q_error.y() << std::endl;
-			std::cout << q_error.z() << std::endl;
-			std::cout << "Error quaternions" << std::endl;
-			std::cout << error(0) << std::endl;
-			std::cout << error(1) << std::endl;
-			std::cout << error(2) << std::endl;
-
-			Eigen::Vector3f angular_acceleration_desired(0.0, 0.0, yaw_ddot_des);
-			Eigen::Vector3f division_varpi_vartheta(0.0, 0.0, 0.0);
-			division_varpi_vartheta << varpi(0)/vartheta(0), varpi(1)/vartheta(1), varpi(2)/vartheta(2);
-			Eigen::Vector3f division_one_over_xi2(0.0, 0.0, 0.0);
-			division_one_over_xi2 << 1 / (xi_2(0) * division_varpi_vartheta(0)), 1 / (xi_2(1) * division_varpi_vartheta(1)), 1 / (xi_2(2) * division_varpi_vartheta(2));
-			Eigen::Vector3f fourth_term(0.0, 0.0, 0.0);
-			fourth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2));
-			Eigen::Vector3f fifth_term(0.0, 0.0, 0.0);
-			fifth_term << division_one_over_xi2(0) * powf(abs(error_dot(0)), 2 - (division_varpi_vartheta(0))) * sign(error_dot(0)) * xi_1(0) * lambda(0) * powf(abs(error(0)), lambda(0) - 1), division_one_over_xi2(1) * powf(abs(error_dot(1)), 2 - (division_varpi_vartheta(1))) * sign(error_dot(1)) * xi_1(1) * lambda(1) * powf(abs(error(1)), lambda(1) - 1), division_one_over_xi2(2) * powf(abs(error_dot(2)), 2 - (division_varpi_vartheta(2))) * sign(error_dot(2)) * xi_1(2) * lambda(2) * powf(abs(error(2)), lambda(2) - 1);
-
-			tau = J * (angular_acceleration_desired + J.inverse() * (attitude_quaternion_vel.cross(J * attitude_quaternion_vel)) - asmc + fourth_term + fifth_term);
-
-			// Saturate values (torque should not be bigger than 0.025 Nm)
-			for (int i = 0; i < tau.size(); i++) {
-				if (tau[i] > 0.025) {
-					tau[i] = 0.025;
-				}
-				else if (tau[i] < -0.025) {
-					tau[i] = -0.025;
-				}
-			}
-		}
-
-		//error = ATT_DES_EULER - ATT_EULER;
-
-		// tf::Quaternion test_attitude_q(attitude_quaternion.x(), attitude_quaternion.y(), attitude_quaternion.z(), attitude_quaternion.w());
-        // tf::Matrix3x3 m(test_attitude_q);
-        // Eigen::Vector3d euler(0.0, 0.0, 0.0);
-        // m.getRPY(euler[0], euler[1], euler[2]);
-        // std::cout << "Angles UAV" << std::endl;
-        // std::cout << euler[0] << std::endl;
-        // std::cout << euler[1] << std::endl;
-        // std::cout << euler[2] << std::endl;
+			std::cout << "RC mode listened by attitude node." << std::endl;
 		
-		// tf::Quaternion test_attitude_des_q(attitude_quaternion_des.x(), attitude_quaternion_des.y(), attitude_quaternion_des.z(), attitude_quaternion_des.w());
-        // tf::Matrix3x3 m2(test_attitude_des_q);
-        // Eigen::Vector3d euler2(0.0, 0.0, 0.0);
-        // m2.getRPY(euler2[0], euler2[1], euler2[2]);
-        // std::cout << "Angles desired" << std::endl;
-        // std::cout << euler2[0] << std::endl;
-        // std::cout << euler2[1] << std::endl;
-        // std::cout << euler2[2] << std::endl;
-
-		// tau(0) = Jxx * (-asmc(0) + (((Jyy-Jzz)/Jxx) * attitude_quaternion_vel(1) * attitude_quaternion_vel(2)) + (vartheta(0)/(varpi(0)*xi_2(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi(0)/vartheta(0)))) * (1 + xi_1(0) * lambda(0) * powf(std::abs(error(0)),lambda(0)-1)));
-		// tau(1) = Jyy * (-asmc(1) + (((Jzz-Jxx)/Jyy) * attitude_quaternion_vel(0) * attitude_quaternion_vel(2)) + (vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)));
-		// tau(2) = Jzz * (-asmc(2) + (((Jxx-Jyy)/Jzz) * attitude_quaternion_vel(0) * attitude_quaternion_vel(1)) + (vartheta(2)/(varpi(2)*xi_2(2))) * sign(error_dot(2)) * powf(std::abs(error_dot(2)),(2-(varpi(2)/vartheta(2)))) * (1 + xi_1(2) * lambda(2) * powf(std::abs(error(2)),lambda(2)-1)));
-
-		// tau(0) = Jxx * (-asmc(0) + (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) + (vartheta(0)/(varpi(0)*xi_2(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi(0)/vartheta(0)))) * (1 + xi_1(0) * lambda(0) * powf(std::abs(error(0)),lambda(0)-1)));
-		// tau(1) = Jyy * (-asmc(1) + (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) + (vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)));
-		// tau(2) = Jzz * (-asmc(2) + (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) + (vartheta(2)/(varpi(2)*xi_2(2))) * sign(error_dot(2)) * powf(std::abs(error_dot(2)),(2-(varpi(2)/vartheta(2)))) * (1 + xi_1(2) * lambda(2) * powf(std::abs(error(2)),lambda(2)-1)));
+		}
 
 		quadTorques.x = tau(0);
 		quadTorques.y = tau(1);

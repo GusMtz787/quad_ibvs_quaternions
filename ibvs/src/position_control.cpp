@@ -3,6 +3,7 @@
 #include "sensor_msgs/CompressedImage.h"
 #include "sensor_msgs/image_encodings.h"
 #include <std_msgs/Float64.h>
+#include <std_msgs/Int32.h>
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Quaternion.h>
@@ -18,6 +19,8 @@
 using namespace std;
 
 //Declaring global variables
+uint32_t rcMode = 0; // 1 for Visual-servoing guidance, 0 for Vicon guidance. 
+
 /////////////////Error and Error dot variables///////////////
 Eigen::Vector4f imgFeat;
 Eigen::Vector4f imgFeat_des;
@@ -37,12 +40,13 @@ Eigen::Vector4f kappa;
 Eigen::Vector4f kappa_dot;
 
 ////////////////////Sliding surface and ASMC///////////////////
+// Visual-servoing controller parameters
 Eigen::Vector4f ss;
-Eigen::Vector4f xi_1;
-Eigen::Vector4f lambda;
-Eigen::Vector4f xi_2;
-Eigen::Vector4f varpi;
-Eigen::Vector4f vartheta;
+Eigen::Vector4f xi_1_visualServoing;
+Eigen::Vector4f lambda_visualServoing;
+Eigen::Vector4f xi_2_visualServoing;
+Eigen::Vector4f varpi_visualServoing;
+Eigen::Vector4f vartheta_visualServoing;
 Eigen::Vector4f asmc;
 Eigen::Vector4f K1;
 Eigen::Vector4f K1_dot;
@@ -50,8 +54,17 @@ Eigen::Vector4f K2;
 Eigen::Vector4f k_reg;
 Eigen::Vector4f kmin;
 Eigen::Vector4f mu;
-Eigen::Vector4f alpha;
-Eigen::Vector4f beta;
+Eigen::Vector4f alpha_visualServoing;
+Eigen::Vector4f beta_visualServoing;
+
+// Vicon controller parameters
+Eigen::Vector4f xi_1_vicon;
+Eigen::Vector4f lambda_vicon;
+Eigen::Vector4f xi_2_vicon;
+Eigen::Vector4f varpi_vicon;
+Eigen::Vector4f vartheta_vicon;
+Eigen::Vector4f alpha_vicon;
+Eigen::Vector4f beta_vicon;
 
 ///////////////////////////Control input///////////////////////////
 Eigen::Vector4f ibvs_ctrl_input;
@@ -64,7 +77,7 @@ Eigen::Vector3f e3;
 float yawRate_desired = 0.0;
 
 float a = 0.0;
-float zD = 2.5;
+float zD = 1.5;
 float tgt_YR = 0.0;
 float tgt_YAccel = 0.0;
 float step_size = 0.02;
@@ -291,6 +304,11 @@ void tgtYawAccelCallback(const std_msgs::Float64::ConstPtr& tgtYawAccel)
 	tgt_YAccel = 0;
 }
 
+void rcModeCallback(const std_msgs::Int32::ConstPtr& message)
+{
+	rcMode = message->data;
+}
+
 /////////////////////////////////Main Program//////////////////////////
 int main(int argc, char *argv[])
 {
@@ -337,6 +355,7 @@ int main(int argc, char *argv[])
     ros::Subscriber quad_vel_IF_sub = nh.subscribe("velocity_estimates", 100, &quadVelIFCallback);
     ros::Subscriber quad_att_quaternion_sub = nh.subscribe("attitude_QUAV", 100, &quadAttQuaternionCallback);
     ros::Subscriber quad_attQuaternionVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttQuaternionVelCallback);
+    ros::Subscriber rcMode_sub = nh.subscribe("rcMode", 10, &rcModeCallback);
 
     ros::Publisher ATTITUDE_DESIRED_EULER = nh.advertise<geometry_msgs::Vector3>("ATTITUDE_DESIRED_EULER",100);
     geometry_msgs::Vector3 ATTITUDE_DES_EULER_VAR;
@@ -346,35 +365,31 @@ int main(int argc, char *argv[])
 
     imgFeat_des << 0,0,1,0;
 
-    // Controller variables initialization
-    xi_1 << 20, 20, 6, 8;
-    lambda << 2, 2, 2, 2;
-    xi_2 << 3, 3, 3, 10;
-    varpi << 4, 4, 4, 4;
-    vartheta << 3, 3, 3, 3;
     K1 << 0, 0, 0, 0;
+    K1_dot << 0, 0, 0, 0;
+
+    // Visual-servoing controller variables
+    xi_1_visualServoing << 20, 20, 6, 8;
+    lambda_visualServoing << 2, 2, 2, 2;
+    xi_2_visualServoing << 3, 3, 3, 10;
+    varpi_visualServoing << 4, 4, 4, 4;
+    vartheta_visualServoing << 3, 3, 3, 3;
     // K2 << 0.1, 0.1, 0.4, 0.4;
     // k_reg << 0.05, 0.05, 0.5, 0.1;
     // kmin << 0.01, 0.01, 0.01, 0.1;
     // mu << 0.05, 0.05, 0.1, 0.1;
-    //alpha << 0.008, 0.007, 0.5, 0.05;
-    alpha << 0.0001, 0.0001, 0.5, 0.5;
-    beta << 5, 5, 10, 0.5;
-    
-    // THIS ONE WORKS WITH STATIC ARUCO MARKER
-    // xi_1 << 3, 3, 6, 8;
-    // lambda << 2, 2, 2, 2;
-    // xi_2 << 3, 3, 3, 3;
-    // varpi << 4, 4, 4, 4;
-    // vartheta << 3, 3, 3, 3;
-    // K1 << 0, 0, 0, 0;
-    // // K2 << 0.1, 0.1, 0.4, 0.4;
-    // // k_reg << 0.05, 0.05, 0.5, 0.1;
-    // // kmin << 0.01, 0.01, 0.01, 0.1;
-    // // mu << 0.05, 0.05, 0.1, 0.1;
-    // //alpha << 0.008, 0.007, 0.5, 0.05;
-    // alpha << 0.002, 0.002, 0.5, 0.5;
-    // beta << 15, 15, 10, 0.5;
+    //alpha_visualServoing << 0.008, 0.007, 0.5, 0.05;
+    alpha_visualServoing << 0.0001, 0.0001, 0.5, 0.5;
+    beta_visualServoing << 5, 5, 10, 0.5;
+
+    // Vicon controller variables
+    xi_1_vicon << 20, 20, 6, 8;
+    lambda_vicon << 2, 2, 2, 2;
+    xi_2_vicon << 3, 3, 3, 10;
+    varpi_vicon << 4, 4, 4, 4;
+    vartheta_vicon << 3, 3, 3, 3;
+    alpha_vicon << 0.0001, 0.0001, 0.5, 0.5;
+    beta_vicon << 5, 5, 10, 0.5;
 
     kappa_dot << 0,0,0,0;
     e3 << 0,0,1;
@@ -392,207 +407,219 @@ int main(int argc, char *argv[])
     
     while(ros::ok()) {   
         
-        imgFeatLinear << imgFeat(0),imgFeat(1),imgFeat(2); 
-        tgt_vel_VF = rotate_quaternion(tgt_vel, attitude_z_quaternion.conjugate());
-        quad_vel_VF = rotate_quaternion(quad_quaternions_velocity, attitude_z_quaternion.conjugate());
-        // std::cout << "QUAD velocity in IF: " << quad_quaternions_velocity << '\n';
-        // std::cout << "QUAD velocity in VF: " << quad_vel_VF << '\n';
-        yawVel_e3 << 0,0,quad_attitude_velocity(2);
-        imgFeatLinear_dot = -skewMatrix(yawVel_e3) * imgFeatLinear - (1/zD) * quad_vel_VF + (1/zD) * tgt_vel_VF;
-        //std::cout << "imgFeatLinear_dot: " << imgFeatLinear_dot << '\n';
+        if (rcMode == 1) {
 
-        Omega << (-1/zD),0,0,imgFeat(1), 
-        0,(-1/zD),0,-imgFeat(0),
-        0,0,(-1/zD),0,
-        0,0,0,-1;
-    
-        v_imgFeat << quad_vel_VF(0),quad_vel_VF(1),quad_vel_VF(2),quad_attitude_velocity(2);
-        //v_imgFeat << quad_vel_VF(0),quad_vel_VF(1),quad_vel_VF(2),quad_attVel(2);
-        kappa << (tgt_vel_VF(0)/zD), (tgt_vel_VF(1)/zD), (tgt_vel_VF(2)/zD), tgt_YR; 
+            imgFeatLinear << imgFeat(0),imgFeat(1),imgFeat(2); 
+            tgt_vel_VF = rotate_quaternion(tgt_vel, attitude_z_quaternion.conjugate());
+            quad_vel_VF = rotate_quaternion(quad_quaternions_velocity, attitude_z_quaternion.conjugate());
+            // std::cout << "QUAD velocity in IF: " << quad_quaternions_velocity << '\n';
+            // std::cout << "QUAD velocity in VF: " << quad_vel_VF << '\n';
+            yawVel_e3 << 0,0,quad_attitude_velocity(2);
+            imgFeatLinear_dot = -skewMatrix(yawVel_e3) * imgFeatLinear - (1/zD) * quad_vel_VF + (1/zD) * tgt_vel_VF;
+            //std::cout << "imgFeatLinear_dot: " << imgFeatLinear_dot << '\n';
+
+            Omega << (-1/zD),0,0,imgFeat(1), 
+            0,(-1/zD),0,-imgFeat(0),
+            0,0,(-1/zD),0,
+            0,0,0,-1;
         
-        // std::cout << "errors: " << imgFeat_des - imgFeat << '\n';
+            v_imgFeat << quad_vel_VF(0),quad_vel_VF(1),quad_vel_VF(2),quad_attitude_velocity(2);
+            //v_imgFeat << quad_vel_VF(0),quad_vel_VF(1),quad_vel_VF(2),quad_attVel(2);
+            kappa << (tgt_vel_VF(0)/zD), (tgt_vel_VF(1)/zD), (tgt_vel_VF(2)/zD), tgt_YR; 
+            
+            // std::cout << "errors: " << imgFeat_des - imgFeat << '\n';
 
-        // IMPORTANT: consider that when the drone does not see the target, the image features 
-        // is a vector of 0, 0, 1, 0. Meaning, there should be no error and the drone should 
-        // only hover. For this, all errors should be 0, but sometimes the yaw accelerations will
-        // report noise, and since we have a double integrator to obtain the yaw desired, this error
-        // is doubly propagated, generating an increasing yaw desired even if there is no target 
-        // to detect. For this, check if the image features are indeed 0, 0, 1, 0. If they are, 
-        // then set all the errors to 0 manually in order to eliminate the increase.
-        if (imgFeat(0) == 0 && imgFeat(1) == 0 && imgFeat(2) == 1 && imgFeat(3) == 0) {
-            error << 0.0, 0.0, 0.0, 0.0;
-            error_dot << 0.0, 0.0, 0.0, 0.0;
-            ibvs_ctrl_input << 0.0, 0.0, 0.0, 0.0;
-            yawRate_desired = 0.0;
-            yaw_desired = 0.0;
-            thrust = quad_mass * gravity;
-            attitude_desired_quaternion.w() = 1.0;
-            attitude_desired_quaternion.x() = 0.0;
-            attitude_desired_quaternion.y() = 0.0;
-            attitude_desired_quaternion.z() = 0.0;
+            // IMPORTANT: consider that when the drone does not see the target, the image features 
+            // is a vector of 0, 0, 1, 0. Meaning, there should be no error and the drone should 
+            // only hover. For this, all errors should be 0, but sometimes the yaw accelerations will
+            // report noise, and since we have a double integrator to obtain the yaw desired, this error
+            // is doubly propagated, generating an increasing yaw desired even if there is no target 
+            // to detect. For this, check if the image features are indeed 0, 0, 1, 0. If they are, 
+            // then set all the errors to 0 manually in order to eliminate the increase.
+            if (imgFeat(0) == 0 && imgFeat(1) == 0 && imgFeat(2) == 1 && imgFeat(3) == 0) {
 
-        }
-        else {
-            error = imgFeat_des - imgFeat;
-            error_dot = -(Omega*v_imgFeat) - kappa;
+                error << 0.0, 0.0, 0.0, 0.0;
+                error_dot << 0.0, 0.0, 0.0, 0.0;
+                ibvs_ctrl_input << 0.0, 0.0, 0.0, 0.0;
+                yawRate_desired = 0.0;
+                yaw_desired = 0.0;
+                thrust = quad_mass * gravity;
+                attitude_desired_quaternion.w() = 1.0;
+                attitude_desired_quaternion.x() = 0.0;
+                attitude_desired_quaternion.y() = 0.0;
+                attitude_desired_quaternion.z() = 0.0;
 
-            //Sliding surfaces and adaptive sliding mode controller
-            for (int i = 0; i<=3; i++)
-            {
-                ss(i) = error(i) + xi_1(i) * powf(std::abs(error(i)),lambda(i)) * sign(error(i)) + xi_2(i) * powf(std::abs(error_dot(i)),(varpi(i)/vartheta(i))) * sign(error_dot(i));
+            }
+
+            else {
+
+                error = imgFeat_des - imgFeat;
+                error_dot = -(Omega*v_imgFeat) - kappa;
+
+                //Sliding surfaces and adaptive sliding mode controller
+                for (int i = 0; i<=3; i++) {
+
+                    ss(i) = error(i) + xi_1_visualServoing(i) * powf(std::abs(error(i)),lambda_visualServoing(i)) * sign(error(i)) + xi_2_visualServoing(i) * powf(std::abs(error_dot(i)),(varpi_visualServoing(i)/vartheta_visualServoing(i))) * sign(error_dot(i));
+                    
+                    // *************** Traditional adaptive law ***************
+                    // if (K1(i)>kmin(i))
+                    // {
+                    //     K1_dot(i) = k_reg(i)*sign(std::abs(ss(i))-mu(i));
+                    // }
+                    // else
+                    // {
+                    //     K1_dot(i) = kmin(i);
+                    // }
+
+                    // K1(i) = K1(i) + step_size*K1_dot(i);
+                    // asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
+
+                    // *************** Modified adaptive law ***************
+                    K1_dot(i) = sqrt(alpha_visualServoing(i)) * sqrt(std::abs(ss(i))) - sqrt(beta_visualServoing(i)) * powf(K1(i),2.0);
+
+                    K1(i) = K1(i) + step_size*K1_dot(i);
+                    asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (powf(K1(i),2) / 2.0) * ss(i);
                 
-                // *************** Traditional adaptive law ***************
-                // if (K1(i)>kmin(i))
-                // {
-                //     K1_dot(i) = k_reg(i)*sign(std::abs(ss(i))-mu(i));
-                // }
-                // else
-                // {
-                //     K1_dot(i) = kmin(i);
-                // }
+                }
+                
+                //Control inputs
+                /////////////yaw_rotation///////////////////////
+                ibvs_ctrl_input(3) = -(-asmc(3) - tgt_YAccel + (vartheta_visualServoing(3)/(varpi_visualServoing(3)*xi_2_visualServoing(3))) * sign(error_dot(3)) * powf(std::abs(error_dot(3)),(2-(varpi_visualServoing(3)/vartheta_visualServoing(3)))) * (1 + xi_1_visualServoing(3) * lambda_visualServoing(3) * powf(std::abs(error(3)),lambda_visualServoing(3)-1))); //yaw_ddot
+                /////////////x-axis///////////////////////
+                ibvs_ctrl_input(0) = -zD * (-asmc(0)  - ibvs_ctrl_input(3) * imgFeatLinear(1) - quad_attitude_velocity(2) * imgFeatLinear_dot(1) - (1/zD) * (tgt_accel(0)) + (vartheta_visualServoing(0)/(varpi_visualServoing(0)*xi_2_visualServoing(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi_visualServoing(0)/vartheta_visualServoing(0)))) * (1 + xi_1_visualServoing(0) * lambda_visualServoing(0) * powf(std::abs(error(0)),lambda_visualServoing(0)-1)));
+                // ibvs_ctrl_input(0) = -zD * (-asmc(0)  - ibvs_ctrl_input(3) * imgFeatLinear(1) - quad_attVel(2) * imgFeatLinear_dot(1) + (vartheta_visualServoing(0)/(varpi_visualServoing(0)*xi_2_visualServoing(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi_visualServoing(0)/vartheta_visualServoing(0)))) * (1 + xi_1_visualServoing(0) * lambda_visualServoing(0) * powf(std::abs(error(0)),lambda_visualServoing(0)-1)));
+                /////////////y-axis///////////////////////
+                ibvs_ctrl_input(1) = -zD * (-asmc(1)  + ibvs_ctrl_input(3) * imgFeatLinear(0) + quad_attitude_velocity(2) * imgFeatLinear_dot(0) - (1/zD) * (tgt_accel(1)) + (vartheta_visualServoing(1)/(varpi_visualServoing(1)*xi_2_visualServoing(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi_visualServoing(1)/vartheta_visualServoing(1)))) * (1 + xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(std::abs(error(1)),lambda_visualServoing(1)-1)));
+                // std::cout << "ASMC: " << -asmc(1) << '\n' << '\n';
+                // std::cout << "ibvs_ctrl_input(3) * imgFeatLinear(0): " << ibvs_ctrl_input(3) * imgFeatLinear(0) << '\n' << '\n';
+                // std::cout << "quad_attitude_velocity(2) * imgFeatLinear_dot(0): " << quad_attitude_velocity(2) * imgFeatLinear_dot(0) << '\n' << '\n';
+                // std::cout << "(1/zD) * tgt_accel(1): " << - (1/zD) * tgt_accel(1) << '\n';
+                // std::cout << "(vartheta_visualServoing(1)/(varpi_visualServoing(1)*xi_2_visualServoing(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi_visualServoing(1)/vartheta_visualServoing(1)))) * (1 + xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(std::abs(error(1)),lambda_visualServoing(1)-1)): " << (vartheta_visualServoing(1)/(varpi_visualServoing(1)*xi_2_visualServoing(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi_visualServoing(1)/vartheta_visualServoing(1)))) * (1 + xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(std::abs(error(1)),lambda_visualServoing(1)-1)) << '\n' << '\n';
+                // ibvs_ctrl_input(1) = -zD * (-asmc(1)  + ibvs_ctrl_input(3) * imgFeatLinear(0) + quad_attVel(2) * imgFeatLinear_dot(0) + (vartheta_visualServoing(1)/(varpi_visualServoing(1)*xi_2_visualServoing(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi_visualServoing(1)/vartheta_visualServoing(1)))) * (1 + xi_1_visualServoing(1) * lambda_visualServoing(1) * powf(std::abs(error(1)),lambda_visualServoing(1)-1)));
+                /////////////z-axis///////////////////////
+                ibvs_ctrl_input(2) = -zD * (-asmc(2) - (1/zD) * (tgt_accel(2)) + (vartheta_visualServoing(2)/(varpi_visualServoing(2)*xi_2_visualServoing(2))) * sign(error_dot(2)) * powf(std::abs(error_dot(2)),(2-(varpi_visualServoing(2)/vartheta_visualServoing(2)))) * (1 + xi_1_visualServoing(2) * lambda_visualServoing(2) * powf(std::abs(error(2)),lambda_visualServoing(2)-1)));       
 
-                // K1(i) = K1(i) + step_size*K1_dot(i);
-                // asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
+                //Quad's virtual frame dynamics 
+                quad_accel_VF << ibvs_ctrl_input(0), ibvs_ctrl_input(1), ibvs_ctrl_input(2); 
+                // std::cout << "Quad accelerations VF: " << quad_accel_VF << '\n';
+                quad_linear_forces_VF = (quad_mass * quad_accel_VF) + (quad_mass * skewMatrix(yawVel_e3)) * quad_vel_VF;
+                //quad_linear_forces_VF = {1.0, 0.0, 0.0};
+                //std::cout << "Quad linear forces VF: " << quad_linear_forces_VF << '\n';
+                //////////////////Thrust///////////////////////////////
+                thrust = ((e3 * (gravity * quad_mass)) - quad_linear_forces_VF).norm();
+                
+                if (thrust > 30) {
+                    thrust = 30;
+                }
 
-                // *************** Modified adaptive law ***************
-                K1_dot(i) = sqrt(alpha(i)) * sqrt(std::abs(ss(i))) - sqrt(beta(i)) * powf(K1(i),2.0);
+                else if (thrust < 0) {
+                    thrust = 0;
+                }
 
-                K1(i) = K1(i) + step_size*K1_dot(i);
-                asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (powf(K1(i),2) / 2.0) * ss(i);
+                /////////////////Desired attitude//////////////////
+                //Calculate yaw desired
+                yawRate_desired = yawRate_desired + step_size * ibvs_ctrl_input(3);
+                yaw_desired = yaw_desired + step_size * yawRate_desired; //Yaw desired in radians
+                
+                std::cout << "Yaw acceleration: " << std::endl;
+                std::cout << ibvs_ctrl_input(3) << std::endl;
+
+                std::cout << "Yaw desired: " << std::endl;
+                std::cout << yaw_desired << std::endl;
+
+                attitude_desired_quaternion_z.w() = cos(yaw_desired * 0.5);
+                attitude_desired_quaternion_z.x() = 0.0;
+                attitude_desired_quaternion_z.y() = 0.0;
+                attitude_desired_quaternion_z.z() = sin(yaw_desired * 0.5);
+
+                // Calculate roll and pitch desired
+                // float roll_des_arg = asin(quad_linear_forces_VF(1)/thrust);
+                // float pitch_des_arg = asin(-quad_linear_forces_VF(0)/(thrust*cos(roll_des_arg)));
+                // std::cout << "Roll and pitch desired: " << std::endl;
+                // std::cout << roll_des_arg << std::endl;
+                // std::cout << pitch_des_arg << std::endl;
+
+                // Eigen::Quaternionf attitude_desired_quaternion_x(1.0, 0.0, 0.0, 0.0);
+                // Eigen::Quaternionf attitude_desired_quaternion_y(1.0, 0.0, 0.0, 0.0);
+
+                // attitude_desired_quaternion_x.w() = cos(roll_des_arg * 0.5);
+                // attitude_desired_quaternion_x.x() = sin(roll_des_arg * 0.5);
+                // attitude_desired_quaternion_x.y() = 0.0;
+                // attitude_desired_quaternion_x.z() = 0.0;
+
+                // attitude_desired_quaternion_y.w() = cos(pitch_des_arg * 0.5);
+                // attitude_desired_quaternion_y.x() = 0.0;
+                // attitude_desired_quaternion_y.y() = sin(pitch_des_arg * 0.5);
+                // attitude_desired_quaternion_y.z() = 0.0;
+
+                // First rotate the forces to the inertial frame 
+                Eigen::Vector3f quad_linear_forces_IF = rotate_quaternion(quad_linear_forces_VF, attitude_quaternion);
+                quad_linear_forces_IF = (e3 * (gravity * quad_mass)) + quad_linear_forces_IF;
+                // std::cout << "Virtual linear forces vector in IF: " << std::endl;
+                // std::cout << quad_linear_forces_IF << std::endl;
+                nu = quad_linear_forces_IF.normalized();
+                // quad_linear_forces_VF = (e3 * (gravity * quad_mass)) + quad_linear_forces_VF;
+                // std::cout << "Virtual linear forces vector in VF: " << std::endl;
+                // std::cout << quad_linear_forces_VF << std::endl;
+                // nu = quad_linear_forces_VF.normalized();
+                // std::cout << "Virtual linear forces: " << std::endl;
+                // std::cout << nu << std::endl;
+                if (nu.dot(nz) == 1.0 || nu.dot(nz) == -1.0) {
+                    attitude_desired_quaternion_x_y.w() = 1.0;
+                }
+                else {
+                    attitude_desired_quaternion_x_y.w() = sqrt((1.0 + nu.dot(nz)) / 2.0);
+                }   
+
+                cross_product = nu.cross(nz);
+                if (cross_product.norm() == 0.0) {
+                    attitude_desired_quaternion_x_y.x() = 0.0;
+                    attitude_desired_quaternion_x_y.y() = 0.0;
+                    attitude_desired_quaternion_x_y.z() = 0.0;
+                } 
+                else {
+                    imaginary_part = (cross_product / cross_product.norm()) * sqrt((1.0 - nu.dot(nz)) / 2.0);
+                    //std::cout << "Imaginary part: " << imaginary_part << std::endl;
+                    attitude_desired_quaternion_x_y.x() = imaginary_part(0);
+                    attitude_desired_quaternion_x_y.y() = imaginary_part(1);
+                    attitude_desired_quaternion_x_y.z() = imaginary_part(2);
+                }
+
+                // std::cout << "Dot product of nu and nz: " << nu.dot(nz) << std::endl;
+                // std::cout << "Cross profuct of nu and nz: " << cross_product << std::endl;
+
+                attitude_desired_quaternion = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x_y, attitude_desired_quaternion_z);
+                // attitude_desired_quaternion_x_y = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x, attitude_desired_quaternion_y);
+                // attitude_desired_quaternion = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x_y, attitude_desired_quaternion_z);
+                attitude_desired_quaternion = attitude_desired_quaternion.normalized();
+                
+                /////////////////////////////////////////////////////////////////////
+                //// CAREFUL: THIS IS ONLY FOR TUNING THE ATTITUDE CONTROL //////////
+                //// WARNING: REMOVE THIS PART WHEN FINISHED TUNING ATTITUDE ////////
+                /////////////////////////////////////////////////////////////////////
+                // attitude_desired_quaternion.w() = 1.0;
+                // attitude_desired_quaternion.x() = 0.0;
+                // attitude_desired_quaternion.y() = 0.0;
+                // attitude_desired_quaternion.z() = 0.0;
+                
+                // tf::Quaternion test_q(attitude_desired_quaternion.x(), attitude_desired_quaternion.y(), attitude_desired_quaternion.z(), attitude_desired_quaternion.w());
+                // tf::Matrix3x3 m(test_q);
+                // Eigen::Vector3d euler(0.0, 0.0, 0.0);
+                // m.getRPY(euler[0], euler[1], euler[2]);
+                // std::cout << "Quaternion desired" << std::endl;
+                // std::cout << attitude_desired_quaternion.w() << std::endl;
+                // std::cout << attitude_desired_quaternion.x() << std::endl;
+                // std::cout << attitude_desired_quaternion.y() << std::endl;
+                // std::cout << attitude_desired_quaternion.z() << std::endl;
+                // std::cout << "Angles desired Quaternions" << std::endl;
+                // std::cout << euler[0] << std::endl;
+                // std::cout << euler[1] << std::endl;
+                // std::cout << euler[2] << std::endl;
             }
-            
-            //Control inputs
-            /////////////yaw_rotation///////////////////////
-            ibvs_ctrl_input(3) = -(-asmc(3) - tgt_YAccel + (vartheta(3)/(varpi(3)*xi_2(3))) * sign(error_dot(3)) * powf(std::abs(error_dot(3)),(2-(varpi(3)/vartheta(3)))) * (1 + xi_1(3) * lambda(3) * powf(std::abs(error(3)),lambda(3)-1))); //yaw_ddot
-            /////////////x-axis///////////////////////
-            ibvs_ctrl_input(0) = -zD * (-asmc(0)  - ibvs_ctrl_input(3) * imgFeatLinear(1) - quad_attitude_velocity(2) * imgFeatLinear_dot(1) - (1/zD) * (tgt_accel(0)) + (vartheta(0)/(varpi(0)*xi_2(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi(0)/vartheta(0)))) * (1 + xi_1(0) * lambda(0) * powf(std::abs(error(0)),lambda(0)-1)));
-            // ibvs_ctrl_input(0) = -zD * (-asmc(0)  - ibvs_ctrl_input(3) * imgFeatLinear(1) - quad_attVel(2) * imgFeatLinear_dot(1) + (vartheta(0)/(varpi(0)*xi_2(0))) * sign(error_dot(0)) * powf(std::abs(error_dot(0)),(2-(varpi(0)/vartheta(0)))) * (1 + xi_1(0) * lambda(0) * powf(std::abs(error(0)),lambda(0)-1)));
-            /////////////y-axis///////////////////////
-            ibvs_ctrl_input(1) = -zD * (-asmc(1)  + ibvs_ctrl_input(3) * imgFeatLinear(0) + quad_attitude_velocity(2) * imgFeatLinear_dot(0) - (1/zD) * (tgt_accel(1)) + (vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)));
-            // std::cout << "ASMC: " << -asmc(1) << '\n' << '\n';
-            // std::cout << "ibvs_ctrl_input(3) * imgFeatLinear(0): " << ibvs_ctrl_input(3) * imgFeatLinear(0) << '\n' << '\n';
-            // std::cout << "quad_attitude_velocity(2) * imgFeatLinear_dot(0): " << quad_attitude_velocity(2) * imgFeatLinear_dot(0) << '\n' << '\n';
-            // std::cout << "(1/zD) * tgt_accel(1): " << - (1/zD) * tgt_accel(1) << '\n';
-            // std::cout << "(vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)): " << (vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)) << '\n' << '\n';
-            // ibvs_ctrl_input(1) = -zD * (-asmc(1)  + ibvs_ctrl_input(3) * imgFeatLinear(0) + quad_attVel(2) * imgFeatLinear_dot(0) + (vartheta(1)/(varpi(1)*xi_2(1))) * sign(error_dot(1)) * powf(std::abs(error_dot(1)),(2-(varpi(1)/vartheta(1)))) * (1 + xi_1(1) * lambda(1) * powf(std::abs(error(1)),lambda(1)-1)));
-            /////////////z-axis///////////////////////
-            ibvs_ctrl_input(2) = -zD * (-asmc(2) - (1/zD) * (tgt_accel(2)) + (vartheta(2)/(varpi(2)*xi_2(2))) * sign(error_dot(2)) * powf(std::abs(error_dot(2)),(2-(varpi(2)/vartheta(2)))) * (1 + xi_1(2) * lambda(2) * powf(std::abs(error(2)),lambda(2)-1)));       
+        }
 
-            //Quad's virtual frame dynamics 
-            quad_accel_VF << ibvs_ctrl_input(0), ibvs_ctrl_input(1), ibvs_ctrl_input(2); 
-            // std::cout << "Quad accelerations VF: " << quad_accel_VF << '\n';
-            quad_linear_forces_VF = (quad_mass * quad_accel_VF) + (quad_mass * skewMatrix(yawVel_e3)) * quad_vel_VF;
-            //quad_linear_forces_VF = {1.0, 0.0, 0.0};
-            //std::cout << "Quad linear forces VF: " << quad_linear_forces_VF << '\n';
-            //////////////////Thrust///////////////////////////////
-            thrust = ((e3 * (gravity * quad_mass)) - quad_linear_forces_VF).norm();
-            if (thrust > 30)
-            {
-                thrust = 30;
-            }
-            else if (thrust < 0)
-            {
-                thrust = 0;
-            }
-            /////////////////Desired attitude//////////////////
-            //Calculate yaw desired
-            yawRate_desired = yawRate_desired + step_size * ibvs_ctrl_input(3);
-            yaw_desired = yaw_desired + step_size * yawRate_desired; //Yaw desired in radians
-            
-            std::cout << "Yaw acceleration: " << std::endl;
-            std::cout << ibvs_ctrl_input(3) << std::endl;
-
-            std::cout << "Yaw desired: " << std::endl;
-            std::cout << yaw_desired << std::endl;
-
-            attitude_desired_quaternion_z.w() = cos(yaw_desired * 0.5);
-            attitude_desired_quaternion_z.x() = 0.0;
-            attitude_desired_quaternion_z.y() = 0.0;
-            attitude_desired_quaternion_z.z() = sin(yaw_desired * 0.5);
-
-            // Calculate roll and pitch desired
-            // float roll_des_arg = asin(quad_linear_forces_VF(1)/thrust);
-            // float pitch_des_arg = asin(-quad_linear_forces_VF(0)/(thrust*cos(roll_des_arg)));
-            // std::cout << "Roll and pitch desired: " << std::endl;
-            // std::cout << roll_des_arg << std::endl;
-            // std::cout << pitch_des_arg << std::endl;
-
-            // Eigen::Quaternionf attitude_desired_quaternion_x(1.0, 0.0, 0.0, 0.0);
-            // Eigen::Quaternionf attitude_desired_quaternion_y(1.0, 0.0, 0.0, 0.0);
-
-            // attitude_desired_quaternion_x.w() = cos(roll_des_arg * 0.5);
-            // attitude_desired_quaternion_x.x() = sin(roll_des_arg * 0.5);
-            // attitude_desired_quaternion_x.y() = 0.0;
-            // attitude_desired_quaternion_x.z() = 0.0;
-
-            // attitude_desired_quaternion_y.w() = cos(pitch_des_arg * 0.5);
-            // attitude_desired_quaternion_y.x() = 0.0;
-            // attitude_desired_quaternion_y.y() = sin(pitch_des_arg * 0.5);
-            // attitude_desired_quaternion_y.z() = 0.0;
-
-            // First rotate the forces to the inertial frame 
-            Eigen::Vector3f quad_linear_forces_IF = rotate_quaternion(quad_linear_forces_VF, attitude_quaternion);
-            quad_linear_forces_IF = (e3 * (gravity * quad_mass)) + quad_linear_forces_IF;
-            // std::cout << "Virtual linear forces vector in IF: " << std::endl;
-            // std::cout << quad_linear_forces_IF << std::endl;
-            nu = quad_linear_forces_IF.normalized();
-            // quad_linear_forces_VF = (e3 * (gravity * quad_mass)) + quad_linear_forces_VF;
-            // std::cout << "Virtual linear forces vector in VF: " << std::endl;
-            // std::cout << quad_linear_forces_VF << std::endl;
-            // nu = quad_linear_forces_VF.normalized();
-            // std::cout << "Virtual linear forces: " << std::endl;
-            // std::cout << nu << std::endl;
-            if (nu.dot(nz) == 1.0 || nu.dot(nz) == -1.0) {
-                attitude_desired_quaternion_x_y.w() = 1.0;
-            }
-            else {
-                attitude_desired_quaternion_x_y.w() = sqrt((1.0 + nu.dot(nz)) / 2.0);
-            }   
-
-            cross_product = nu.cross(nz);
-            if (cross_product.norm() == 0.0) {
-                attitude_desired_quaternion_x_y.x() = 0.0;
-                attitude_desired_quaternion_x_y.y() = 0.0;
-                attitude_desired_quaternion_x_y.z() = 0.0;
-            } 
-            else {
-                imaginary_part = (cross_product / cross_product.norm()) * sqrt((1.0 - nu.dot(nz)) / 2.0);
-                //std::cout << "Imaginary part: " << imaginary_part << std::endl;
-                attitude_desired_quaternion_x_y.x() = imaginary_part(0);
-                attitude_desired_quaternion_x_y.y() = imaginary_part(1);
-                attitude_desired_quaternion_x_y.z() = imaginary_part(2);
-            }
-
-            // std::cout << "Dot product of nu and nz: " << nu.dot(nz) << std::endl;
-            // std::cout << "Cross profuct of nu and nz: " << cross_product << std::endl;
-
-            attitude_desired_quaternion = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x_y, attitude_desired_quaternion_z);
-            // attitude_desired_quaternion_x_y = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x, attitude_desired_quaternion_y);
-            // attitude_desired_quaternion = multiplyQuaternionTimesQuaternion(attitude_desired_quaternion_x_y, attitude_desired_quaternion_z);
-            attitude_desired_quaternion = attitude_desired_quaternion.normalized();
-            
-            /////////////////////////////////////////////////////////////////////
-            //// CAREFUL: THIS IS ONLY FOR TUNING THE ATTITUDE CONTROL //////////
-            //// WARNING: REMOVE THIS PART WHEN FINISHED TUNING ATTITUDE ////////
-            /////////////////////////////////////////////////////////////////////
-            // attitude_desired_quaternion.w() = 1.0;
-            // attitude_desired_quaternion.x() = 0.0;
-            // attitude_desired_quaternion.y() = 0.0;
-            // attitude_desired_quaternion.z() = 0.0;
-            
-            // tf::Quaternion test_q(attitude_desired_quaternion.x(), attitude_desired_quaternion.y(), attitude_desired_quaternion.z(), attitude_desired_quaternion.w());
-            // tf::Matrix3x3 m(test_q);
-            // Eigen::Vector3d euler(0.0, 0.0, 0.0);
-            // m.getRPY(euler[0], euler[1], euler[2]);
-            // std::cout << "Quaternion desired" << std::endl;
-            // std::cout << attitude_desired_quaternion.w() << std::endl;
-            // std::cout << attitude_desired_quaternion.x() << std::endl;
-            // std::cout << attitude_desired_quaternion.y() << std::endl;
-            // std::cout << attitude_desired_quaternion.z() << std::endl;
-            // std::cout << "Angles desired Quaternions" << std::endl;
-            // std::cout << euler[0] << std::endl;
-            // std::cout << euler[1] << std::endl;
-            // std::cout << euler[2] << std::endl;
+        else {
+            std::cout << "Rc mode works good." << std::endl;
         }
         
  
