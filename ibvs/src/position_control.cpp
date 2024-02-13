@@ -80,7 +80,7 @@ float a = 0.0;
 float zD = 1.5;
 float tgt_YR = 0.0;
 float tgt_YAccel = 0.0;
-float step_size = 0.02;
+float step_size = 0.01;
 float quad_mass = 1.3;
 float gravity = 9.81;
 float thrust = quad_mass * gravity;
@@ -407,6 +407,7 @@ int main(int argc, char *argv[])
     
     while(ros::ok()) {   
         
+        // Visual-servoing mode
         if (rcMode == 1) {
 
             imgFeatLinear << imgFeat(0),imgFeat(1),imgFeat(2); 
@@ -618,8 +619,35 @@ int main(int argc, char *argv[])
             }
         }
 
+        // VICON-guided
         else {
-            std::cout << "Rc mode works good." << std::endl;
+
+            //Sliding surfaces and adaptive sliding mode controller
+            for (int i = 0; i<=3; i++) {
+
+                ss(i) = error(i) + xi_1_visualServoing(i) * powf(std::abs(error(i)),lambda_visualServoing(i)) * sign(error(i)) + xi_2_visualServoing(i) * powf(std::abs(error_dot(i)),(varpi_visualServoing(i)/vartheta_visualServoing(i))) * sign(error_dot(i));
+                
+                // *************** Traditional adaptive law ***************
+                // if (K1(i)>kmin(i))
+                // {
+                //     K1_dot(i) = k_reg(i)*sign(std::abs(ss(i))-mu(i));
+                // }
+                // else
+                // {
+                //     K1_dot(i) = kmin(i);
+                // }
+
+                // K1(i) = K1(i) + step_size*K1_dot(i);
+                // asmc(i) = -K1(i) * powf(std::abs(ss(i)),0.5) * sign(ss(i)) - K2(i) * ss(i);
+
+                // *************** Modified adaptive law ***************
+                K1_dot(i) = sqrt(alpha_visualServoing(i)) * sqrt(std::abs(ss(i))) - sqrt(beta_visualServoing(i)) * powf(K1(i),2.0);
+
+                K1(i) = K1(i) + step_size*K1_dot(i);
+                asmc(i) = -2 * K1(i) * sqrt(std::abs(ss(i))) * sign(ss(i)) - (powf(K1(i),2) / 2.0) * ss(i);
+            
+            }       
+
         }
         
  

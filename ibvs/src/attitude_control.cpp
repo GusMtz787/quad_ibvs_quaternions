@@ -233,6 +233,7 @@ int main(int argc, char *argv[])
 
 	while(ros::ok()) {
 
+        // Visual-servoing mode
 		if (rcMode == 1) {
 
 			q_error = multiplyQuaternionTimesQuaternion(attitude_quaternion.conjugate(), attitude_quaternion_des);
@@ -341,6 +342,7 @@ int main(int argc, char *argv[])
 
 		}
 
+        // VICON-guided
 		else {
 			
 			std::cout << "RC mode listened by attitude node." << std::endl;
