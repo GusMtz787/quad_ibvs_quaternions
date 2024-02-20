@@ -140,11 +140,20 @@ void quadAttVelCallback(const geometry_msgs::Vector3::ConstPtr& quadAttVel)
     quad_attVel(2) = quadAttVel->z;
 }
 
-void quadAttCallback(const geometry_msgs::Vector3::ConstPtr& quadAtt)
+void quadAttCallback(const geometry_msgs::Quaternion::ConstPtr& quadAttQuaternion)
 {
-	quad_att(0) = quadAtt->x;
-    quad_att(1) = quadAtt->y;
-    quad_att(2) = quadAtt->z;
+	roll  = atan2(2.0 * (quadAttQuaternion->w * quadAttQuaternion->y + quadAttQuaternion->w * quadAttQuaternion->x) , 1.0 - 2.0 * (quadAttQuaternion->x * quadAttQuaternion->x + quadAttQuaternion->y * quadAttQuaternion->y));
+	// if (isnan(roll)) {
+	// 	roll = 0.0;
+	// }
+    pitch = asin(2.0 * (quadAttQuaternion->y * quadAttQuaternion->w - quadAttQuaternion->z * quadAttQuaternion->x));
+	// if (isnan(pitch)) {
+	// 	pitch = 0.0;
+	// }
+    yaw = atan2(2.0 * (quadAttQuaternion->z * quadAttQuaternion->w + quadAttQuaternion->x * quadAttQuaternion->y) , - 1.0 + 2.0 * (quadAttQuaternion->w * quadAttQuaternion->w + quadAttQuaternion->x * quadAttQuaternion->x));
+    // if (isnan(yaw)) {
+    //     yaw = 0.0;
+    // }
 }
 
 void tgtAccelCallback(const geometry_msgs::Vector3::ConstPtr& tgtAccel)
@@ -189,10 +198,10 @@ int main(int argc, char *argv[])
     std_msgs::Float64 z_des_var;
     geometry_msgs::Vector3 desired_attitude_var;
 
-    ros::Subscriber quad_vel_BF_sub = nh.subscribe("quad_velocity_BF", 100, &quadVelBFCallback);
-    ros::Subscriber quad_attVel_sub = nh.subscribe("quad_attitude_velocity", 100, &quadAttVelCallback);
-    ros::Subscriber quad_att_sub = nh.subscribe("quad_attitude", 100, &quadAttCallback);
-    ros::Subscriber position_quad_sub = nh.subscribe("quad_position", 100, &quadPosCallback);
+    ros::Subscriber quad_vel_BF_sub = nh.subscribe("velocity_estimates", 100, &quadVelBFCallback); // Check if should be Body Frame or Inertial Frame
+    ros::Subscriber quad_attVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttVelCallback);
+    ros::Subscriber quad_att_sub = nh.subscribe("attitude_QUAV", 100, &quadAttCallback);
+    ros::Subscriber position_quad_sub = nh.subscribe("position_QUAV", 100, &quadPosCallback);
 
     xi_1 << 4, 4, 6;
     lambda << 2.5, 2.5, 2;

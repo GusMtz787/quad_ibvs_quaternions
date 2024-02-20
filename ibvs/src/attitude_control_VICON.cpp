@@ -1,5 +1,3 @@
-
-
 //Including ROS libraries
 #include "ros/ros.h"
 #include "sensor_msgs/CompressedImage.h"
@@ -59,11 +57,25 @@ void attDesCallback(const geometry_msgs::Vector3::ConstPtr& attD)
 	attitude_des(2) = attD->z;
 }
 
-void attCallback(const geometry_msgs::Vector3::ConstPtr& att)
+void attCallback(const geometry_msgs::Quaternion::ConstPtr& att)
 {
-	attitude(0) = att->x;
-	attitude(1) = att->y;
-	attitude(2) = att->z;
+    // Roll
+	attitude(0)  = atan2(2.0 * (att->w * att->y + att->w * att->x) , 1.0 - 2.0 * (att->x * att->x + att->y * att->y));
+	// if (isnan(roll)) {
+	// 	roll = 0.0;
+	// }
+
+    // Pitch
+    attitude(1) = asin(2.0 * (att->y * att->w - att->z * att->x));
+	// if (isnan(pitch)) {
+	// 	pitch = 0.0;
+	// }
+
+    // Yaw
+    attitude(2) = atan2(2.0 * (att->z * att->w + att->x * att->y) , - 1.0 + 2.0 * (att->w * att->w + att->x * att->x));
+    // if (isnan(yaw)) {
+    //     yaw = 0.0;
+    // }
 }
 
 void attVelCallback(const geometry_msgs::Vector3::ConstPtr& attVel)
@@ -107,10 +119,9 @@ int main(int argc, char *argv[])
 	ros::Rate loop_rate(100);
 	
 	ros::Subscriber desired_att_sub = nh.subscribe("desired_attitude",100, &attDesCallback);
-	ros::Subscriber quad_attitude_sub = nh.subscribe("quad_attitude",100, &attCallback);
-	ros::Subscriber quad_attitude_velocity_sub = nh.subscribe("quad_attitude_velocity",100, &attVelCallback);
+	ros::Subscriber quad_attitude_sub = nh.subscribe("attitude_QUAV",100, &attCallback);
+	ros::Subscriber quad_attitude_velocity_sub = nh.subscribe("attVel_estimates",100, &attVelCallback);
 	ros::Subscriber yaw_ddot_des_sub = nh.subscribe("yaw_ddot_desired",100, &yawddotVelCallback);
-	
 	
 	geometry_msgs::Vector3 quadTorques;
 	geometry_msgs::Vector3 adaptive_gains_att;
