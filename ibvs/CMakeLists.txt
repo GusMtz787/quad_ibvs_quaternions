@@ -39,6 +39,12 @@ target_link_libraries(attitude_ctrl_node ${catkin_LIBRARIES})
 add_executable(position_ctrl_node src/position_control.cpp)
 target_link_libraries(position_ctrl_node ${catkin_LIBRARIES})
 
+add_executable(attitude_ctrl_node_VICON src/attitude_control_VICON.cpp)
+target_link_libraries(attitude_ctrl_node_VICON ${catkin_LIBRARIES})
+
+add_executable(position_ctrl_node_VICON src/position_control_VICON.cpp)
+target_link_libraries(position_ctrl_node_VICON ${catkin_LIBRARIES})
+
 add_executable(pwm_node src/pwms.cpp)
 target_link_libraries(pwm_node ${catkin_LIBRARIES})
 

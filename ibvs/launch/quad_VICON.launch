@@ -1,0 +1,48 @@
+<launch>
+
+  <!-- RADIO CONTROL NODE -->
+  <node name="radioControl_pub" pkg="pwm_package" type="RadioControl.py">
+    <!-- You can add any additional parameters here -->
+    <!-- <param name="param_name" value="param_value"/> -->
+  </node>
+  
+  <!-- ATTITUDE CONTROL NODE -->
+  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node_VICON" output="screen">
+  </node>
+  
+  <!-- POSITION CONTROL NODE -->
+  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node_VICON" >
+  </node>
+  
+  <!-- PWM HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
+  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" >
+  </node>
+  
+  <!-- PWM CALCULATION NODE -->
+  <node name="pwm_pub" pkg="ibvs" type="pwm_node" >
+  </node>
+
+  <!-- ESTIMATOR NODE -->
+  <node name="estimator" pkg="ibvs" type="estimation_node" >
+  </node>
+
+  <!-- IMU HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
+  <!-- <node name="imu_sub" pkg="pwm_package" type="IMU.py" output="screen">
+  </node> -->
+  
+  <!-- KEYBOARD CONTROL NODE -->
+  <!-- <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keyboard" output="screen">
+  </node> -->
+  
+  <!-- VICON NODE -->
+  <!-- IP and port on Vicon Windows PC -->
+  <arg name="datastream_hostport" default="192.168.0.166:801"/>
+  <!-- Fixed vicon world frame -->
+  <arg name="vicon_world_frame" default="/vicon/world"/>
+
+	<node pkg="vicon_bridge" type="vicon_bridge" name="vicon" output="screen" >
+		<param name="stream_mode" value="ServerPush"/>
+    <param name="datastream_hostport" value="$(arg datastream_hostport)"/>
+		<param name="tf_ref_frame_id" value="$(arg vicon_world_frame)"/>
+	</node>
+</launch>
