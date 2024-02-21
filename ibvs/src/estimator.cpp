@@ -88,7 +88,7 @@ void pos_att_Callback(const geometry_msgs::TransformStamped::ConstPtr& poseQUAV)
     // Rotate the quaternion 180 degrees alongside the x axis because the vicon world is ENU and we want NED.
     // So, even though the drone in the vicon is in NED, because of the World vicon reference, the NED of the
     // drone is rotated 180 with respect to the vicon world ENU. 
-    attitude_quat = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quat);
+    //attitude_quat = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quat);
 
 	attitude(0) = atan2(2.0 * (attitude_quat.w() * attitude_quat.y() + attitude_quat.w() * attitude_quat.x()) , 1.0 - 2.0 * (attitude_quat.x() * attitude_quat.x() + attitude_quat.y() * attitude_quat.y()));
     attitude(1) = asin(2.0 * (attitude_quat.y() * attitude_quat.w() - attitude_quat.z() * attitude_quat.x()));

@@ -17,7 +17,7 @@ def rc_reader():
     pubMode = rospy.Publisher('rcMode', Int32, queue_size=10)
 
     # Set the loop rate (in Hz)
-    rate = rospy.Rate(10)  # 1 Hz
+    rate = rospy.Rate(10)  # 10 Hz
 
     while not rospy.is_shutdown():
 

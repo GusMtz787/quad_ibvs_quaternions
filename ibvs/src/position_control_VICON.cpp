@@ -142,15 +142,15 @@ void quadAttVelCallback(const geometry_msgs::Vector3::ConstPtr& quadAttVel)
 
 void quadAttCallback(const geometry_msgs::Quaternion::ConstPtr& quadAttQuaternion)
 {
-	roll  = atan2(2.0 * (quadAttQuaternion->w * quadAttQuaternion->y + quadAttQuaternion->w * quadAttQuaternion->x) , 1.0 - 2.0 * (quadAttQuaternion->x * quadAttQuaternion->x + quadAttQuaternion->y * quadAttQuaternion->y));
+	quad_att(0)  = atan2(2.0 * (quadAttQuaternion->w * quadAttQuaternion->y + quadAttQuaternion->w * quadAttQuaternion->x) , 1.0 - 2.0 * (quadAttQuaternion->x * quadAttQuaternion->x + quadAttQuaternion->y * quadAttQuaternion->y));
 	// if (isnan(roll)) {
 	// 	roll = 0.0;
 	// }
-    pitch = asin(2.0 * (quadAttQuaternion->y * quadAttQuaternion->w - quadAttQuaternion->z * quadAttQuaternion->x));
+    quad_att(1) = asin(2.0 * (quadAttQuaternion->y * quadAttQuaternion->w - quadAttQuaternion->z * quadAttQuaternion->x));
 	// if (isnan(pitch)) {
 	// 	pitch = 0.0;
 	// }
-    yaw = atan2(2.0 * (quadAttQuaternion->z * quadAttQuaternion->w + quadAttQuaternion->x * quadAttQuaternion->y) , - 1.0 + 2.0 * (quadAttQuaternion->w * quadAttQuaternion->w + quadAttQuaternion->x * quadAttQuaternion->x));
+    quad_att(2) = atan2(2.0 * (quadAttQuaternion->z * quadAttQuaternion->w + quadAttQuaternion->x * quadAttQuaternion->y) , - 1.0 + 2.0 * (quadAttQuaternion->w * quadAttQuaternion->w + quadAttQuaternion->x * quadAttQuaternion->x));
     // if (isnan(yaw)) {
     //     yaw = 0.0;
     // }
@@ -185,6 +185,7 @@ int main(int argc, char *argv[])
     ros::Publisher ss_pub = nh.advertise<geometry_msgs::Vector3>("ibvs_ss",100);
     ros::Publisher thrust_pub = nh.advertise<std_msgs::Float64>("quad_thrust",100);
     ros::Publisher desired_att_pub = nh.advertise<geometry_msgs::Vector3>("desired_attitude",100);
+    ros::Publisher attitude_euler = nh.advertise<geometry_msgs::Vector3>("quav_attitude_euler",100);
 
     ros::Publisher accelerations_control = nh.advertise<geometry_msgs::Vector3>("accelerations_control",100);
     geometry_msgs::Vector3 accelerations_des_var;
@@ -197,6 +198,7 @@ int main(int argc, char *argv[])
     std_msgs::Float64 thrust_var;
     std_msgs::Float64 z_des_var;
     geometry_msgs::Vector3 desired_attitude_var;
+    geometry_msgs::Vector3 quav_att_euler;
 
     ros::Subscriber quad_vel_BF_sub = nh.subscribe("velocity_estimates", 100, &quadVelBFCallback); // Check if should be Body Frame or Inertial Frame
     ros::Subscriber quad_attVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttVelCallback);
@@ -222,7 +224,7 @@ int main(int argc, char *argv[])
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    quad_desired_pos << 0.0, 0.0, -2.0;
+    quad_desired_pos << 0.0, 0.0, 1.0;
     quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = thrust;
@@ -283,13 +285,10 @@ int main(int argc, char *argv[])
         error_dot = quad_desired_vel - quad_vel_BF;
 
         // Thrust calculation 
-        thrust = -(quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) + gravity - Kp(2)*error(2) - Kd(2)*error_dot(2));
+        thrust = -(quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) - gravity - Kp(2)*error(2) - Kd(2)*error_dot(2));
         
-        if (thrust < -30.0) {
-            thrust = -30.0;
-        }
-        else if (thrust > 0.0) {
-            thrust = 0.0;
+        if (thrust > 30.0) {
+            thrust = 30.0;
         }
 
         /////////////////Desired attitude//////////////////   
@@ -332,7 +331,7 @@ int main(int argc, char *argv[])
         asmc_var.y = asmc(1);
         asmc_var.z = asmc(2);
         //Thrust
-        thrust_var.data = thrust;
+        thrust_var.data = -thrust;
         //Desired attitude and yaw rate
         desired_attitude_var.x = attitude_desired(0);
         desired_attitude_var.y = attitude_desired(1);
@@ -351,6 +350,10 @@ int main(int argc, char *argv[])
         accelerations_des_var.z = asmc(2);
         accelerations_control.publish(accelerations_des_var);
 
+        quav_att_euler.x = quad_att(0);
+        quav_att_euler.y = quad_att(1);
+        quav_att_euler.z = quad_att(2);
+
         error_pub.publish(error_var);
         adaptive_gain_pub.publish(adaptive_gain_var);
         asmc_pub.publish(asmc_var);
@@ -358,6 +361,7 @@ int main(int argc, char *argv[])
         desired_att_pub.publish(desired_attitude_var); 
         error_dot_pub.publish(error_dot_var);
         ss_pub.publish(ss_var);
+        attitude_euler.publish(quav_att_euler);
 
         std::cout << "error: " << error << std::endl;
         //std::cout << "pitch_des " << attitude_desired(1) << std::endl;

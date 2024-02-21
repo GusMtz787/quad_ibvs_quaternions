@@ -7,7 +7,7 @@
   </node>
   
   <!-- ATTITUDE CONTROL NODE -->
-  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node_VICON" output="screen">
+  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node_VICON">
   </node>
   
   <!-- POSITION CONTROL NODE -->
@@ -15,7 +15,7 @@
   </node>
   
   <!-- PWM HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
-  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" >
+  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" output="screen">
   </node>
   
   <!-- PWM CALCULATION NODE -->

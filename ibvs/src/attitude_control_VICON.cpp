@@ -126,10 +126,12 @@ int main(int argc, char *argv[])
 	geometry_msgs::Vector3 quadTorques;
 	geometry_msgs::Vector3 adaptive_gains_att;
 	geometry_msgs::Vector3 ss_att;	
+	geometry_msgs::Vector3 error_att;	
 	
 	ros::Publisher quad_torques_pub = nh.advertise<geometry_msgs::Vector3>("quad_torques",100);
 	ros::Publisher adaptive_gain_att_pub = nh.advertise<geometry_msgs::Vector3>("adaptive_gain_attitude",100);
 	ros::Publisher sigma_att_pub = nh.advertise<geometry_msgs::Vector3>("sigma_att",100);
+	ros::Publisher attitude_error_pub = nh.advertise<geometry_msgs::Vector3>("attitude_error",100);
 	
     // xi_1 << 1, 0.5, 0.5;
     // lambda << 1.8, 1.8, 1.8;
@@ -195,7 +197,7 @@ int main(int argc, char *argv[])
 		
 		quadTorques.x = -tau(0);
 		quadTorques.y = -tau(1);
-		quadTorques.z = -tau(2);
+		quadTorques.z = tau(2);
 		
 		adaptive_gains_att.x = K1(0);
 		adaptive_gains_att.y = K1(1);
@@ -204,10 +206,15 @@ int main(int argc, char *argv[])
 		ss_att.x = ss(0);
 		ss_att.y = ss(1);
 		ss_att.z = ss(2);	
+
+		error_att.x = error(0);
+		error_att.y = error(1);
+		error_att.z = error(2);
 			
 		quad_torques_pub.publish(quadTorques);
 		adaptive_gain_att_pub.publish(adaptive_gains_att);
-		sigma_att_pub.publish(ss_att);				
+		sigma_att_pub.publish(ss_att);	
+		attitude_error_pub.publish(error_att);			
 			
 		std::cout << "Error_yaw " << error(2) << std::endl;
 		//std::cout << "Torque_pitch " << tau(1) << std::endl;
