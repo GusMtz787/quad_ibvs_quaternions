@@ -285,16 +285,16 @@ int main(int argc, char *argv[])
         error_dot = quad_desired_vel - quad_vel_BF;
 
         // Thrust calculation 
-        thrust = -(quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) - gravity - Kp(2)*error(2) - Kd(2)*error_dot(2));
+        thrust = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) - gravity - Kp(2)*error(2) - Kd(2)*error_dot(2));
         
-        if (thrust > 30.0) {
-            thrust = 30.0;
+        if (thrust < -20.0) {
+            thrust = -20.0;
         }
 
         /////////////////Desired attitude//////////////////   
         attitude_desired(2) = 0.0; // For now, yaw is fixed to 0     
         
-        roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
+        roll_des_arg = -(quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
         
         if (roll_des_arg > 1) {
             roll_des_arg = 1;
@@ -305,7 +305,7 @@ int main(int argc, char *argv[])
         
         attitude_desired(0) = asin(roll_des_arg); //Roll desired
 
-        pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
+        pitch_des_arg = -((quad_mass / thrust) * (Kp(0)*error(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
 
         //////////////////Saturating the desired roll and pitch rotations up to pi/2 to avoid singularities
         if (pitch_des_arg > 1) {

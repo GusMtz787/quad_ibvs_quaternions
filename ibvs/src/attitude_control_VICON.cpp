@@ -22,6 +22,9 @@ Eigen::Vector3f attitude_vel;
 Eigen::Vector3f error;
 Eigen::Vector3f error_dot;
 
+Eigen::Quaternionf quaternion_roll(0.0, 1.0, 0.0, 0.0);
+Eigen::Quaternionf attitude_quat(1.0, 0.0, 0.0, 0.0);
+
 ////////////////////Sliding surface and ASMC///////////////////
 Eigen::Vector3f ss;
 Eigen::Vector3f xi_1;
@@ -50,70 +53,94 @@ float Jyy = 0.0478;
 float Jzz = 0.0599;
 
 float yaw_ddot_des;
-void attDesCallback(const geometry_msgs::Vector3::ConstPtr& attD)
+
+// General functions
+Eigen::Quaternionf multiplyQuaternionTimesQuaternion(Eigen::Quaternionf q, Eigen::Quaternionf r) 
 {
-	attitude_des(0) = attD->x;
-	attitude_des(1) = attD->y;
-	attitude_des(2) = attD->z;
+	Eigen::Quaternionf quat_result;
+
+	quat_result.w() = r.w() * q.w() - r.x() * q.x() - r.y() * q.y() - r.z() * q.z();
+	quat_result.x() = r.w() * q.x() + r.x() * q.w() - r.y() * q.z() + r.z() * q.y();
+	quat_result.y() = r.w() * q.y() + r.x() * q.z() + r.y() * q.w() - r.z() * q.x();
+	quat_result.z() = r.w() * q.z() - r.x() * q.y() + r.y() * q.x() + r.z() * q.w();
+	
+	return quat_result;
 }
 
-void attCallback(const geometry_msgs::Quaternion::ConstPtr& att)
-{
-    // Roll
-	attitude(0)  = atan2(2.0 * (att->w * att->y + att->w * att->x) , 1.0 - 2.0 * (att->x * att->x + att->y * att->y));
-	// if (isnan(roll)) {
-	// 	roll = 0.0;
-	// }
-
-    // Pitch
-    attitude(1) = asin(2.0 * (att->y * att->w - att->z * att->x));
-	// if (isnan(pitch)) {
-	// 	pitch = 0.0;
-	// }
-
-    // Yaw
-    attitude(2) = atan2(2.0 * (att->z * att->w + att->x * att->y) , - 1.0 + 2.0 * (att->w * att->w + att->x * att->x));
-    // if (isnan(yaw)) {
-    //     yaw = 0.0;
-    // }
-}
-
-void attVelCallback(const geometry_msgs::Vector3::ConstPtr& attVel)
-{
-	attitude_vel(0) = attVel->x;
-	attitude_vel(1) = attVel->y;
-	attitude_vel(2) = attVel->z;
-}
-
-void yawddotVelCallback(const std_msgs::Float64::ConstPtr& ydd)
-{
-	yaw_ddot_des = ydd->data;
-}
-
-float sign(float value)
-{
+float sign(float value) {
 	int result;
 	
-	if(value > 0)
-	{
+	if(value > 0) {
 		result = 1;
 	}
 	
-	else if(value < 0)
-	{
+	else if(value < 0) {
 		result = -1;
 	}
 	
-	else if(value == 0)
-	{
+	else if(value == 0) {
 		result = 0;
 	}
 	
 	return result;
 }
 
-int main(int argc, char *argv[])
-{	
+// Callbacks
+void attDesCallback(const geometry_msgs::Vector3::ConstPtr& attD) {
+	attitude_des(0) = attD->x;
+	attitude_des(1) = attD->y;
+	attitude_des(2) = attD->z;
+}
+
+void attCallback(const geometry_msgs::Quaternion::ConstPtr& att) {
+
+	// attitude_quat.x() = att->x;
+    // attitude_quat.y() = att->y;
+    // attitude_quat.z() = att->z;
+    // attitude_quat.w() = att->w;
+
+	// // Rotate the quaternion 180 degrees alongside the x axis because the vicon world is ENU and we want NED.
+    // // So, even though the drone in the vicon is in NED, because of the World vicon reference, the NED of the
+    // // drone is rotated 180 with respect to the vicon world ENU. 
+	// attitude_quat = multiplyQuaternionTimesQuaternion(quaternion_roll, attitude_quat);
+
+    // // Roll
+	// attitude(0)  = atan2(2.0 * (attitude_quat.w() * attitude_quat.y() + attitude_quat.w() * attitude_quat.x()) , 1.0 - 2.0 * (attitude_quat.x() * attitude_quat.x() + attitude_quat.y() * attitude_quat.y()));
+	// // if (isnan(roll)) {
+	// // 	roll = 0.0;
+	// // }
+
+    // // Pitch
+    // attitude(1) = asin(2.0 * (attitude_quat.y() * attitude_quat.w() - attitude_quat.z() * attitude_quat.x()));
+	// // if (isnan(pitch)) {
+	// // 	pitch = 0.0;
+	// // }
+
+    // // Yaw
+    // attitude(2) = atan2(2.0 * (attitude_quat.z() * attitude_quat.w() + attitude_quat.x() * attitude_quat.y()) , - 1.0 + 2.0 * (attitude_quat.w() * attitude_quat.w() + attitude_quat.x() * attitude_quat.x()));
+    // // if (isnan(yaw)) {
+    // //     yaw = 0.0;
+    // // }
+
+	attitude(0)  = atan2(2.0 * (att->w * att->y + att->w * att->x) , 1.0 - 2.0 * (att->x * att->x + att->y * att->y));
+	
+    attitude(1) = asin(2.0 * (att->y * att->w - att->z * att->x));
+	
+    attitude(2) = atan2(2.0 * (att->z * att->w + att->x * att->y) , - 1.0 + 2.0 * (att->w * att->w + att->x * att->x));
+}
+
+void attVelCallback(const geometry_msgs::Vector3::ConstPtr& attVel) {
+	attitude_vel(0) = attVel->x;
+	attitude_vel(1) = attVel->y;
+	attitude_vel(2) = attVel->z;
+}
+
+void yawddotVelCallback(const std_msgs::Float64::ConstPtr& ydd) {
+	yaw_ddot_des = ydd->data;
+}
+
+int main(int argc, char *argv[]) {
+
 	ros::init(argc, argv, "attitude_nftasmc_VICON");
 	ros::NodeHandle nh;
 	ros::Rate loop_rate(100);
@@ -195,9 +222,19 @@ int main(int argc, char *argv[])
 		tau(1) = Jyy * (attitude_acc_des(1) - (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) - Kp(1)*error(1) - Kd(1)*error_dot(1));
 		tau(2) = Jzz * (attitude_acc_des(2) - (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) - Kp(2)*error(2) - Kd(2)*error_dot(2));		
 		
+		// Saturate torques for tests
+		for(int i = 0; i < 3; i++) {
+			if (tau(i) > 0.07) {
+				tau(i) = 0.07;
+			}
+			if (tau(i) < -0.07) {
+				tau(i) = -0.07;
+			}
+		}
+
 		quadTorques.x = -tau(0);
 		quadTorques.y = -tau(1);
-		quadTorques.z = tau(2);
+		quadTorques.z = -tau(2);
 		
 		adaptive_gains_att.x = K1(0);
 		adaptive_gains_att.y = K1(1);
