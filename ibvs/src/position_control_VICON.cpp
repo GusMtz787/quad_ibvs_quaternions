@@ -10,6 +10,7 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
+#include <fstream>
 //Including Eigen library
 #include <eigen3/Eigen/Dense>
 
@@ -117,6 +118,12 @@ float sign(float var)
     return result;
 }
 
+void loadCSV(const std::string& file_path) {
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        ROS_ERROR("Failed loading file");
+    }
+}
 
 /////////////ROS Subscribers//////////////////////////////////
 void tgtVelCallback(const geometry_msgs::Vector3::ConstPtr& tgtVel)

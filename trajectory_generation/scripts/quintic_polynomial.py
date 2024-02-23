@@ -82,3 +82,8 @@ xf_dot_dot = np.asarray([0,0,0])
 
 trajectory_cubic(x0=x0,xf=xf, x0_dot=x0_dot, xf_dot=xf_dot, x0_dot_dot=x0_dot_dot, 
                  xf_dot_dot=xf_dot_dot, time=t, interval=0.01)
+
+
+# References
+# https://ucr-ee144.readthedocs.io/en/latest/lab6.html
+# https://github.com/novice1011/trajectory-planning
