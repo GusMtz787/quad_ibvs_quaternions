@@ -119,10 +119,14 @@ float sign(float var)
 }
 
 void loadCSV(const std::string& file_path) {
+
     std::ifstream file(file_path);
     if (!file.is_open()) {
         ROS_ERROR("Failed loading file");
     }
+
+
+
 }
 
 /////////////ROS Subscribers//////////////////////////////////
@@ -177,6 +181,20 @@ void quadPosCallback(const geometry_msgs::Vector3::ConstPtr& quadPos)
     quad_pos(2) = quadPos->z;
 }
 
+void quadDesPosCallback(const geometry_msgs::Vector3::ConstPtr& quadDesPos)
+{
+	quad_desired_pos(0) = quadDesPos->x;
+    quad_desired_pos(1) = quadDesPos->y;
+    quad_desired_pos(2) = quadDesPos->z;
+}
+
+void quadDesVelCallback(const geometry_msgs::Vector3::ConstPtr& quadDesVel)
+{
+	quad_desired_vel(0) = quadDesVel->x;
+    quad_desired_vel(1) = quadDesVel->y;
+    quad_desired_vel(2) = quadDesVel->z;
+}
+
 /////////////////////////////////Main Program//////////////////////////
 int main(int argc, char *argv[])
 {
@@ -211,6 +229,8 @@ int main(int argc, char *argv[])
     ros::Subscriber quad_attVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttVelCallback);
     ros::Subscriber quad_att_sub = nh.subscribe("attitude_QUAV", 100, &quadAttCallback);
     ros::Subscriber position_quad_sub = nh.subscribe("position_QUAV", 100, &quadPosCallback);
+    ros::Subscriber desired_position_sub = nh.subscribe("desired_position", 100, &quadDesPosCallback);
+    ros::Subscriber desired_velocity_sub = nh.subscribe("desired_velocity", 100, &quadDesVelCallback);
 
     xi_1 << 4, 4, 6;
     lambda << 2.5, 2.5, 2;
@@ -231,8 +251,8 @@ int main(int argc, char *argv[])
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    quad_desired_pos << 0.0, 0.0, 1.0;
-    quad_desired_vel << 0.0, 0.0, 0.0;
+    // quad_desired_pos << 0.0, 0.0, 1.0;
+    // quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = thrust;
     thrust_pub.publish(thrust_var);
@@ -241,7 +261,7 @@ int main(int argc, char *argv[])
     desired_attitude_var.y = 0;
     desired_attitude_var.z = 0;
 	desired_att_pub.publish(desired_attitude_var);
-    ros::Duration(0.01).sleep();
+    ros::Duration(1).sleep();
 
     while(ros::ok()) {   
 

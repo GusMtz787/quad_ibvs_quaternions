@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
 	attitude_vel_des << 0.0, 0.0, 0.0;
 	attitude_acc_des << 0.0, 0.0, 0.0;
 
-	//ros::Duration(1).sleep();
+	ros::Duration(1).sleep();
 	while(ros::ok()) {	
 
 		// for(int i = 0; i <= 2; i++)

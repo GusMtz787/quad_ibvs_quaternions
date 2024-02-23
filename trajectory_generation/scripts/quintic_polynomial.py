@@ -1,11 +1,29 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import rospy
+from geometry_msgs.msg import Vector3
 # import plotly.graph_objects as go 
 # from plotly.subplots import make_subplots
 
 def trajectory_cubic(x0, xf, x0_dot, xf_dot, x0_dot_dot, xf_dot_dot, time, interval):
-        
+
+    # Initialize the ROS node
+    rospy.init_node('trajectory_node', anonymous=True)
+
+    # Create a publisher for Vector3 messages
+    position_pub = rospy.Publisher('desired_position', Vector3, queue_size=10)
+    velocity_pub = rospy.Publisher('desired_velocity', Vector3, queue_size=10)
+
+    # Create publisher variables
+    position_msg = Vector3()
+    velocity_msg = Vector3()
+
+    # Set the publishing rate (e.g., 1 Hz)
+    rate = rospy.Rate(100)
+    
+    counter = 0
+
     t0 = time[0]
     tf = time[-1]
 
@@ -44,9 +62,43 @@ def trajectory_cubic(x0, xf, x0_dot, xf_dot, x0_dot_dot, xf_dot_dot, time, inter
                 trajectories_matrix[j, 7] = coef[0]*5*(intervals[j]**4) + coef[1]*4*(intervals[j]**3) + coef[2]*3*(intervals[j]**2) + coef[3]*2*(intervals[j]) + coef[4]
                 trajectories_matrix[j, 8] = coef[0]*20*(intervals[j]**3) + coef[1]*12*(intervals[j]**2) + coef[2]*6*(intervals[j]) + coef[3]*2
     
-    file_path = '/home/pi/trajectory.csv'
+        # file_path = '/home/pi/trajectory.csv'
+        # np.savetxt(file_path, trajectories_matrix, delimiter=',')
 
-    np.savetxt(file_path, trajectories_matrix, delimiter=',')
+    rospy.sleep(1)
+
+    while not rospy.is_shutdown():
+
+        if (counter < len(trajectories_matrix[:,0])):
+            print(counter)
+            print(trajectories_matrix[counter, 6])
+            position_msg.x = trajectories_matrix[counter, 0]
+            position_msg.y = trajectories_matrix[counter, 3]
+            position_msg.z = trajectories_matrix[counter, 6]
+
+            velocity_msg.x = trajectories_matrix[counter, 1]
+            velocity_msg.y = trajectories_matrix[counter, 4]
+            velocity_msg.z = trajectories_matrix[counter, 7]
+
+            counter += 1
+        
+        else:
+            position_msg.x = trajectories_matrix[-1, 0]
+            position_msg.y = trajectories_matrix[-1, 3]
+            position_msg.z = trajectories_matrix[-1, 6]
+
+            velocity_msg.x = trajectories_matrix[-1, 1]
+            velocity_msg.y = trajectories_matrix[-1, 4]
+            velocity_msg.z = trajectories_matrix[-1, 7]
+
+        position_pub.publish(position_msg)
+        velocity_pub.publish(velocity_msg)
+
+        rate.sleep()
+
+    # file_path = '/home/pi/trajectory.csv'
+
+    # np.savetxt(file_path, trajectories_matrix, delimiter=',')
 
     # fig = make_subplots(rows=3, cols=1, subplot_titles=['Position', 'Velocity', 'Acceleration'])
 
@@ -70,19 +122,24 @@ def trajectory_cubic(x0, xf, x0_dot, xf_dot, x0_dot_dot, xf_dot_dot, time, inter
     # # Show the plot
     # fig.show()
 
-t = np.arange(0,4)
+if __name__ == '__main__':
 
-x0 = np.asarray([0,0,0])
-x0_dot = np.asarray([0,0,0])
-x0_dot_dot = np.asarray([0,0,0])
+    try:
+        t = np.arange(0,4)
 
-xf = np.asarray([0,0,1])
-xf_dot = np.asarray([0,0,0])
-xf_dot_dot = np.asarray([0,0,0])
+        x0 = np.asarray([0,0,0])
+        x0_dot = np.asarray([0,0,0])
+        x0_dot_dot = np.asarray([0,0,0])
 
-trajectory_cubic(x0=x0,xf=xf, x0_dot=x0_dot, xf_dot=xf_dot, x0_dot_dot=x0_dot_dot, 
-                 xf_dot_dot=xf_dot_dot, time=t, interval=0.01)
+        xf = np.asarray([0,0,1])
+        xf_dot = np.asarray([0,0,0])
+        xf_dot_dot = np.asarray([0,0,0])
 
+        trajectory_cubic(x0=x0,xf=xf, x0_dot=x0_dot, xf_dot=xf_dot, x0_dot_dot=x0_dot_dot, 
+                        xf_dot_dot=xf_dot_dot, time=t, interval=0.01)
+
+    except rospy.ROSInterruptionException:
+        pass
 
 # References
 # https://ucr-ee144.readthedocs.io/en/latest/lab6.html

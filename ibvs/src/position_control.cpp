@@ -402,8 +402,8 @@ int main(int argc, char *argv[])
     desired_attitude_quaternion_var.y = 0.0;
     desired_attitude_quaternion_var.z = 0.0;
 	desired_att_quaternions_pub.publish(desired_attitude_quaternion_var);
-    //ros::Duration(0.01).sleep();
-    ros::Duration(2.05).sleep();
+    ros::Duration(0.01).sleep();
+    //ros::Duration(2.05).sleep();
     
     while(ros::ok()) {   
         

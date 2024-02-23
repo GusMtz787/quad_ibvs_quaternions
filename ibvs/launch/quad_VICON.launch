@@ -15,7 +15,7 @@
   </node>
   
   <!-- PWM HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
-  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" output="screen">
+  <node name="pwm_sender" pkg="pwm_package" type="set_pwm.py" >
   </node>
   
   <!-- PWM CALCULATION NODE -->
@@ -24,6 +24,10 @@
 
   <!-- ESTIMATOR NODE -->
   <node name="estimator" pkg="ibvs" type="estimation_node" >
+  </node>
+
+  <!-- TRAJECTORY GENERATOR NODE -->
+  <node name="trajectory_pub" pkg="trajectory_generation" type="quintic_polynomial.py" output="screen">
   </node>
 
   <!-- IMU HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
