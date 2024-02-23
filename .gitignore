@@ -7,3 +7,4 @@
 # Folder to not ignore
 !/ibvs
 !/pwm_package
+!/trajectory_generation
