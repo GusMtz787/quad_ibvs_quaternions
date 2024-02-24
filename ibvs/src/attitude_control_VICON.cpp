@@ -175,8 +175,8 @@ int main(int argc, char *argv[]) {
 	// attitude_vel_des(0) = 0;
 	// attitude_vel_des(1) = 0;
 
-	Eigen::Vector3f Kp(10.0, 10.0, 10);
-	Eigen::Vector3f Kd(3.0, 3.0, 3.0);
+	Eigen::Vector3f Kp(0.5, 0.5, 10);
+	Eigen::Vector3f Kd(0.005, 0.005, 3.0);
 
 	attitude_vel_des << 0.0, 0.0, 0.0;
 	attitude_acc_des << 0.0, 0.0, 0.0;

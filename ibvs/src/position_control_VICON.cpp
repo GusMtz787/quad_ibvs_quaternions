@@ -229,8 +229,8 @@ int main(int argc, char *argv[])
     ros::Subscriber quad_attVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttVelCallback);
     ros::Subscriber quad_att_sub = nh.subscribe("attitude_QUAV", 100, &quadAttCallback);
     ros::Subscriber position_quad_sub = nh.subscribe("position_QUAV", 100, &quadPosCallback);
-    ros::Subscriber desired_position_sub = nh.subscribe("desired_position", 100, &quadDesPosCallback);
-    ros::Subscriber desired_velocity_sub = nh.subscribe("desired_velocity", 100, &quadDesVelCallback);
+    // ros::Subscriber desired_position_sub = nh.subscribe("desired_position", 100, &quadDesPosCallback);
+    // ros::Subscriber desired_velocity_sub = nh.subscribe("desired_velocity", 100, &quadDesVelCallback);
 
     xi_1 << 4, 4, 6;
     lambda << 2.5, 2.5, 2;
@@ -251,8 +251,8 @@ int main(int argc, char *argv[])
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    // quad_desired_pos << 0.0, 0.0, 1.0;
-    // quad_desired_vel << 0.0, 0.0, 0.0;
+    quad_desired_pos << 0.0, 0.0, 1.0;
+    quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = thrust;
     thrust_pub.publish(thrust_var);
