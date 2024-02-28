@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 
     //auto pwm = get_rcout();
 
-    ros::Rate loop_rate(200);
+    ros::Rate loop_rate(400);
     ros::spinOnce();
      
     while(ros::ok()) {

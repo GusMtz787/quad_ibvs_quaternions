@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
 
 	ros::init(argc, argv, "attitude_nftasmc_VICON");
 	ros::NodeHandle nh;
-	ros::Rate loop_rate(100);
+	ros::Rate loop_rate(250);
 	
 	ros::Subscriber desired_att_sub = nh.subscribe("desired_attitude",100, &attDesCallback);
 	ros::Subscriber quad_attitude_sub = nh.subscribe("attitude_QUAV",100, &attCallback);
@@ -175,8 +175,8 @@ int main(int argc, char *argv[]) {
 	// attitude_vel_des(0) = 0;
 	// attitude_vel_des(1) = 0;
 
-	Eigen::Vector3f Kp(0.5, 0.5, 10);
-	Eigen::Vector3f Kd(0.005, 0.005, 3.0);
+	Eigen::Vector3f Kp(0.005, 0.005, 10);
+	Eigen::Vector3f Kd(0, 0, 0);
 
 	attitude_vel_des << 0.0, 0.0, 0.0;
 	attitude_acc_des << 0.0, 0.0, 0.0;
@@ -218,9 +218,9 @@ int main(int argc, char *argv[]) {
 		error = attitude_des - attitude;
 		error_dot = attitude_vel_des - attitude_vel;
 
-		tau(0) = Jxx * (attitude_acc_des(0) - (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) - Kp(0)*error(0) - Kd(0)*error_dot(0));
-		tau(1) = Jyy * (attitude_acc_des(1) - (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) - Kp(1)*error(1) - Kd(1)*error_dot(1));
-		tau(2) = Jzz * (attitude_acc_des(2) - (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) - Kp(2)*error(2) - Kd(2)*error_dot(2));		
+		tau(0) = Jxx * (attitude_acc_des(0) - (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) + Kp(0)*error(0) + Kd(0)*error_dot(0));
+		tau(1) = Jyy * (attitude_acc_des(1) - (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) + Kp(1)*error(1) + Kd(1)*error_dot(1));
+		tau(2) = Jzz * (attitude_acc_des(2) - (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) + Kp(2)*error(2) + Kd(2)*error_dot(2));		
 		
 		// Saturate torques for tests
 		for(int i = 0; i < 3; i++) {
@@ -232,9 +232,9 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		quadTorques.x = -tau(0);
-		quadTorques.y = -tau(1);
-		quadTorques.z = -tau(2);
+		quadTorques.x = 0.0; // tau(0)
+		quadTorques.y = 0.0; // tau(1)
+		quadTorques.z = tau(2);
 		
 		adaptive_gains_att.x = K1(0);
 		adaptive_gains_att.y = K1(1);

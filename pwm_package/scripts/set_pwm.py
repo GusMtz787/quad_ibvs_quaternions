@@ -46,6 +46,12 @@ def callback_rcArm(msg):
     global enable
     enable = msg.data
 
+def callback_rcReset(msg):
+    global maxAngle
+
+    if (msg.data) == 1:
+        maxAngle = False
+
 def callback_quaternion(att):
     global maxAngle
     # Calculate Roll (around X-axis)
@@ -68,10 +74,11 @@ def sender():
     rospy.init_node('pwm_subscriber', anonymous=True)
     rospy.Subscriber("pwm_values", Quaternion, callback_pwm)
     rospy.Subscriber("rcArm", Int32, callback_rcArm)
+    rospy.Subscriber("rcReset", Int32, callback_rcReset)
     rospy.Subscriber("attitude_QUAV", Quaternion, callback_quaternion)
     pwm_values_final = rospy.Publisher('pwm_values_final', Quaternion, queue_size=10)
 
-    rate = rospy.Rate(300)  # 100 Hz
+    rate = rospy.Rate(400) 
 
     # Enable PWM signals
     with navio2.pwm.PWM(PWM_OUTPUT_MOTOR_1) as pwm1, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_2) as pwm2, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_3) as pwm3, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_4) as pwm4:

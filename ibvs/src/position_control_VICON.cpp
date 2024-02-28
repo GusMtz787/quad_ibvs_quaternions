@@ -181,12 +181,12 @@ void quadPosCallback(const geometry_msgs::Vector3::ConstPtr& quadPos)
     quad_pos(2) = quadPos->z;
 }
 
-void quadDesPosCallback(const geometry_msgs::Vector3::ConstPtr& quadDesPos)
-{
-	quad_desired_pos(0) = quadDesPos->x;
-    quad_desired_pos(1) = quadDesPos->y;
-    quad_desired_pos(2) = quadDesPos->z;
-}
+// void quadDesPosCallback(const geometry_msgs::Vector3::ConstPtr& quadDesPos)
+// {
+// 	quad_desired_pos(0) = quadDesPos->x;
+//     quad_desired_pos(1) = quadDesPos->y;
+//     quad_desired_pos(2) = quadDesPos->z;
+// }
 
 void quadDesVelCallback(const geometry_msgs::Vector3::ConstPtr& quadDesVel)
 {
@@ -246,12 +246,12 @@ int main(int argc, char *argv[])
     alpha << 0.008, 0.008, 0.5;
     beta << 10, 10, 10;
 
-    Eigen::Vector3f Kp(0.7, 0.7, 3.5);
-    Eigen::Vector3f Kd(0.9, 0.9, 3.0);
+    Eigen::Vector3f Kp(10, 10, 10);
+    Eigen::Vector3f Kd(0, 0, 0);
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    quad_desired_pos << 0.0, 0.0, 1.0;
+    quad_desired_pos << 0.0, 0.0, 1.5;
     quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = thrust;
@@ -312,16 +312,20 @@ int main(int argc, char *argv[])
         error_dot = quad_desired_vel - quad_vel_BF;
 
         // Thrust calculation 
-        thrust = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) - gravity - Kp(2)*error(2) - Kd(2)*error_dot(2));
+        thrust = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) - gravity + Kp(2)*error(2) + Kd(2)*error_dot(2));
         
+        // Thrust saturation
         if (thrust < -20.0) {
             thrust = -20.0;
         }
+        else if (thrust > 0.0) {
+            thrust = 0.0;
+        }
 
         /////////////////Desired attitude//////////////////   
-        attitude_desired(2) = 0.0; // For now, yaw is fixed to 0     
+        attitude_desired(2) = 0.0; // For now, yaw is fixed     
         
-        roll_des_arg = -(quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
+        roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
         
         if (roll_des_arg > 1) {
             roll_des_arg = 1;
@@ -332,7 +336,7 @@ int main(int argc, char *argv[])
         
         attitude_desired(0) = asin(roll_des_arg); //Roll desired
 
-        pitch_des_arg = -((quad_mass / thrust) * (Kp(0)*error(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
+        pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
 
         //////////////////Saturating the desired roll and pitch rotations up to pi/2 to avoid singularities
         if (pitch_des_arg > 1) {
@@ -358,10 +362,10 @@ int main(int argc, char *argv[])
         asmc_var.y = asmc(1);
         asmc_var.z = asmc(2);
         //Thrust
-        thrust_var.data = -thrust;
+        thrust_var.data = thrust;
         //Desired attitude and yaw rate
-        desired_attitude_var.x = attitude_desired(0);
-        desired_attitude_var.y = attitude_desired(1);
+        desired_attitude_var.x = 0.0;
+        desired_attitude_var.y = 0.0;
         desired_attitude_var.z = attitude_desired(2);
 
         ss_var.x = ss(0);

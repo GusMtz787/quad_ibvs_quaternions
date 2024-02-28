@@ -15,6 +15,7 @@ def rc_reader():
     # Create a publisher for the topics
     pubArm = rospy.Publisher('rcArm', Int32, queue_size=10)
     pubMode = rospy.Publisher('rcMode', Int32, queue_size=10)
+    pubReset = rospy.Publisher('rcReset', Int32, queue_size=10)
 
     # Set the loop rate (in Hz)
     rate = rospy.Rate(10)  # 10 Hz
@@ -23,6 +24,7 @@ def rc_reader():
 
         arm = rcin.read(9)
         mode = rcin.read(8)
+        reset = rcin.read(5)
         #print(mode)
 
         # Consider: if arm is 1932 then ARMED (1), else DISARM (0)
@@ -36,10 +38,16 @@ def rc_reader():
             mode = 1
         else:
             mode = 0
+
+        if int(reset) == 1933:
+            reset = 1
+        else:
+            reset = 0
         
         # Publish the messages on the topics
         pubArm.publish(arm)
         pubMode.publish(mode)
+        pubReset.publish(reset)
 
         # Sleep to maintain the loop rate
         rate.sleep()
