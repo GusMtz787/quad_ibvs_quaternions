@@ -246,12 +246,12 @@ int main(int argc, char *argv[])
     alpha << 0.008, 0.008, 0.5;
     beta << 10, 10, 10;
 
-    Eigen::Vector3f Kp(10, 10, 10);
+    Eigen::Vector3f Kp(10, 10, 3);
     Eigen::Vector3f Kd(0, 0, 0);
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    quad_desired_pos << 0.0, 0.0, 1.5;
+    quad_desired_pos << 0.0, 0.0, 1.0;
     quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = thrust;
@@ -312,18 +312,18 @@ int main(int argc, char *argv[])
         error_dot = quad_desired_vel - quad_vel_BF;
 
         // Thrust calculation 
-        thrust = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) - gravity + Kp(2)*error(2) + Kd(2)*error_dot(2));
+        thrust = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) + gravity + Kp(2)*error(2) + Kd(2)*error_dot(2));
         
         // Thrust saturation
-        if (thrust < -20.0) {
-            thrust = -20.0;
-        }
-        else if (thrust > 0.0) {
+        if (thrust < 0.0) {
             thrust = 0.0;
+        }
+        else if (thrust > 20.0) {
+            thrust = 20.0;
         }
 
         /////////////////Desired attitude//////////////////   
-        attitude_desired(2) = 0.0; // For now, yaw is fixed     
+        attitude_desired(2) = 0.7; // For now, yaw is fixed     
         
         roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
         
@@ -362,11 +362,11 @@ int main(int argc, char *argv[])
         asmc_var.y = asmc(1);
         asmc_var.z = asmc(2);
         //Thrust
-        thrust_var.data = thrust;
+        thrust_var.data = 0.0;
         //Desired attitude and yaw rate
         desired_attitude_var.x = 0.0;
         desired_attitude_var.y = 0.0;
-        desired_attitude_var.z = attitude_desired(2);
+        desired_attitude_var.z = 0.0;
 
         ss_var.x = ss(0);
         ss_var.y = ss(1);

@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 	// attitude_vel_des(0) = 0;
 	// attitude_vel_des(1) = 0;
 
-	Eigen::Vector3f Kp(0.005, 0.005, 10);
+	Eigen::Vector3f Kp(3, 3, 3);
 	Eigen::Vector3f Kd(0, 0, 0);
 
 	attitude_vel_des << 0.0, 0.0, 0.0;
@@ -232,8 +232,8 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		quadTorques.x = 0.0; // tau(0)
-		quadTorques.y = 0.0; // tau(1)
+		quadTorques.x = tau(0); // tau(0)
+		quadTorques.y = tau(1); // tau(1)
 		quadTorques.z = tau(2);
 		
 		adaptive_gains_att.x = K1(0);
