@@ -7,11 +7,11 @@
   </node>
   
   <!-- ATTITUDE CONTROL NODE -->
-  <node name="attitude_ctrl" pkg="ibvs" type="attitude_ctrl_node_VICON">
+  <node name="attitude_ctrl_VICON" pkg="ibvs" type="attitude_ctrl_node_VICON">
   </node>
   
   <!-- POSITION CONTROL NODE -->
-  <node name="position_ctrl" pkg="ibvs" type="position_ctrl_node_VICON" >
+  <node name="position_ctrl_VICON" pkg="ibvs" type="position_ctrl_node_VICON" >
   </node>
   
   <!-- PWM HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->

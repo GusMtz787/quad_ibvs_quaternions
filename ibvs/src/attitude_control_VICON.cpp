@@ -175,8 +175,8 @@ int main(int argc, char *argv[]) {
 	// attitude_vel_des(0) = 0;
 	// attitude_vel_des(1) = 0;
 
-	Eigen::Vector3f Kp(3, 3, 3);
-	Eigen::Vector3f Kd(0, 0, 0);
+	Eigen::Vector3f Kp(3, 3, 2);
+	Eigen::Vector3f Kd(0.01, 0.01, 2);
 
 	attitude_vel_des << 0.0, 0.0, 0.0;
 	attitude_acc_des << 0.0, 0.0, 0.0;
@@ -223,14 +223,14 @@ int main(int argc, char *argv[]) {
 		tau(2) = Jzz * (attitude_acc_des(2) - (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) + Kp(2)*error(2) + Kd(2)*error_dot(2));		
 		
 		// Saturate torques for tests
-		for(int i = 0; i < 3; i++) {
-			if (tau(i) > 0.07) {
-				tau(i) = 0.07;
-			}
-			if (tau(i) < -0.07) {
-				tau(i) = -0.07;
-			}
-		}
+		// for(int i = 0; i < 3; i++) {
+		// 	if (tau(i) > 0.12) {
+		// 		tau(i) = 0.12;
+		// 	}
+		// 	if (tau(i) < -0.12) {
+		// 		tau(i) = -0.12;
+		// 	}
+		// }
 
 		quadTorques.x = tau(0); // tau(0)
 		quadTorques.y = tau(1); // tau(1)

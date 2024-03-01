@@ -15,7 +15,7 @@ PWM_OUTPUT_MOTOR_2 = 1
 PWM_OUTPUT_MOTOR_3 = 2
 PWM_OUTPUT_MOTOR_4 = 3
 SERVO_ENABLE = 1.00 #ms
-SERVO_MIN = SERVO_ENABLE + 0.4 #mS
+SERVO_MIN = SERVO_ENABLE + 0.3 #mS
 SERVO_MAX = 2.000 #
 
 pwm_signals = np.array([0.0, 0.0, 0.0, 0.0])
@@ -40,7 +40,7 @@ def callback_pwm(pwms):
     pwm_signals[2] = pwms.y * 0.001
     pwm_signals[3] = pwms.z * 0.001
 
-    fix_below_threshold(pwm_signals, SERVO_MIN)
+    #fix_below_threshold(pwm_signals, SERVO_MIN)
 
 def callback_rcArm(msg):
     global enable

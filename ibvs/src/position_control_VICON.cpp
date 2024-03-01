@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
     quad_desired_pos << 0.0, 0.0, 1.0;
     quad_desired_vel << 0.0, 0.0, 0.0;
 
-    thrust_var.data = thrust;
+    thrust_var.data = 0.0;
     thrust_pub.publish(thrust_var);
 
     desired_attitude_var.x = 0;
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
         }
 
         /////////////////Desired attitude//////////////////   
-        attitude_desired(2) = 0.7; // For now, yaw is fixed     
+        attitude_desired(2) = 0.0; // For now, yaw is fixed     
         
         roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
         
@@ -362,11 +362,11 @@ int main(int argc, char *argv[])
         asmc_var.y = asmc(1);
         asmc_var.z = asmc(2);
         //Thrust
-        thrust_var.data = 0.0;
+        thrust_var.data = thrust;
         //Desired attitude and yaw rate
-        desired_attitude_var.x = 0.0;
-        desired_attitude_var.y = 0.0;
-        desired_attitude_var.z = 0.0;
+        desired_attitude_var.x = attitude_desired(0);
+        desired_attitude_var.y = attitude_desired(1);
+        desired_attitude_var.z = attitude_desired(2);
 
         ss_var.x = ss(0);
         ss_var.y = ss(1);

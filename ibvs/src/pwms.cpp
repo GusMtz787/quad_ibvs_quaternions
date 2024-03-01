@@ -28,8 +28,8 @@ Eigen::Vector4f pwm_signal = {0.0, 0.0, 0.0, 0.0};
 // x as the Omega squared (velocities squared) vector
 static Eigen::Matrix4f A = (Eigen::Matrix4f() << thrust_coefficient, thrust_coefficient, thrust_coefficient, thrust_coefficient,
     L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient,
-    L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient,
-    -torque_coefficient, torque_coefficient, -torque_coefficient, torque_coefficient).finished();
+    -L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient,
+    torque_coefficient, -torque_coefficient, torque_coefficient, -torque_coefficient).finished();
 
 ///////////////////////////////////////////////////////////////////
 //////////////////// Callback Functions ///////////////////////////
