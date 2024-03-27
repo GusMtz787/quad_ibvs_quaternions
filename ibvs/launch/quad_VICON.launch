@@ -27,8 +27,8 @@
   </node>
 
   <!-- TRAJECTORY GENERATOR NODE -->
-  <node name="trajectory_pub" pkg="trajectory_generation" type="quintic_polynomial.py" output="screen">
-  </node>
+  <!-- <node name="trajectory_pub" pkg="trajectory_generation" type="quintic_polynomial.py" output="screen">
+  </node> -->
 
   <!-- IMU HARDWARE SETTINGS NODE (NAVIO'S HARDWARE) -->
   <!-- <node name="imu_sub" pkg="pwm_package" type="IMU.py" output="screen">

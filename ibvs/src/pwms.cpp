@@ -50,17 +50,17 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "pwm_node_pub");
     ros::NodeHandle nh;
 
-    ros::Publisher pwm_values_pub = nh.advertise<geometry_msgs::Quaternion>("pwm_values",100);
+    ros::Publisher pwm_values_pub = nh.advertise<geometry_msgs::Quaternion>("pwm_values",1);
 
 	geometry_msgs::Quaternion pwm_values;
 
     ros::Subscriber thrust_sub = nh.subscribe("quad_thrust",100,&ThrustInputCallback);
-	ros::Subscriber quad_torques_sub = nh.subscribe("quad_torques",100,&TorqueInputsCallback);
+	ros::Subscriber quad_torques_sub = nh.subscribe("quad_torques",1,&TorqueInputsCallback);
 
     //auto pwm = get_rcout();
 
     ros::Rate loop_rate(400);
-    ros::spinOnce();
+    //ros::spinOnce();
      
     while(ros::ok()) {
         
@@ -77,17 +77,22 @@ int main(int argc, char **argv) {
         pwm_signal(2) = -0.00000000137 * powf(omega(2), 2) + 0.00226 * omega(2) + 1076.6;
         pwm_signal(3) = -0.00000000137 * powf(omega(3), 2) + 0.00226 * omega(3) + 1076.6;
 
-        pwm_values.w = pwm_signal(3);
-        pwm_values.x = pwm_signal(1);
-        pwm_values.y = pwm_signal(0);
-        pwm_values.z = pwm_signal(2);
+        pwm_values.w = pwm_signal(3) * 0.001;
+        pwm_values.x = pwm_signal(1) * 0.001;
+        pwm_values.y = pwm_signal(0) * 0.001;
+        pwm_values.z = pwm_signal(2) * 0.001;
 
-        std::cout << "Control inputs:" << std::endl;
-        std::cout << control_inputs << std::endl;
-        std::cout << "Speed:" << std::endl;
-        std::cout << omega << std::endl;
-        std::cout << "Calculated PWM values:" << std::endl;
-        std::cout << pwm_values << std::endl;
+        // pwm_values.w = pwm_signal(0);
+        // pwm_values.x = pwm_signal(1);
+        // pwm_values.y = pwm_signal(2);
+        // pwm_values.z = pwm_signal(3);
+
+        // std::cout << "Control inputs:" << std::endl;
+        // std::cout << control_inputs << std::endl;
+        // std::cout << "Speed:" << std::endl;
+        // std::cout << omega << std::endl;
+        // std::cout << "Calculated PWM values:" << std::endl;
+        // std::cout << pwm_values << std::endl;
 
         pwm_values_pub.publish(pwm_values);
 

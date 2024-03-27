@@ -19,6 +19,7 @@ using namespace std;
 //Declaring global variables
 /////////////////Error and Error dot variables///////////////
 Eigen::Vector3f error;
+Eigen::Vector3f error_integrated(0.0, 0.0, 0.0);
 Eigen::Vector3f error_dot;
 Eigen::Vector3f tgt_vel;
 Eigen::Vector3f tgt_accel;
@@ -57,6 +58,7 @@ float yawRate_desired = 0;
 float roll_des_arg;
 float pitch_des_arg;
 
+bool saturation = false;
 float step_size = 0.01;
 float quad_mass = 1.3;
 float gravity = 9.81;
@@ -188,12 +190,12 @@ void quadPosCallback(const geometry_msgs::Vector3::ConstPtr& quadPos)
 //     quad_desired_pos(2) = quadDesPos->z;
 // }
 
-void quadDesVelCallback(const geometry_msgs::Vector3::ConstPtr& quadDesVel)
-{
-	quad_desired_vel(0) = quadDesVel->x;
-    quad_desired_vel(1) = quadDesVel->y;
-    quad_desired_vel(2) = quadDesVel->z;
-}
+// void quadDesVelCallback(const geometry_msgs::Vector3::ConstPtr& quadDesVel)
+// {
+// 	quad_desired_vel(0) = quadDesVel->x;
+//     quad_desired_vel(1) = quadDesVel->y;
+//     quad_desired_vel(2) = quadDesVel->z;
+// }
 
 /////////////////////////////////Main Program//////////////////////////
 int main(int argc, char *argv[])
@@ -211,6 +213,7 @@ int main(int argc, char *argv[])
     ros::Publisher thrust_pub = nh.advertise<std_msgs::Float64>("quad_thrust",100);
     ros::Publisher desired_att_pub = nh.advertise<geometry_msgs::Vector3>("desired_attitude",100);
     ros::Publisher attitude_euler = nh.advertise<geometry_msgs::Vector3>("quav_attitude_euler",100);
+    ros::Publisher desired_pos_pub = nh.advertise<geometry_msgs::Vector3>("desired_position",100);
 
     ros::Publisher accelerations_control = nh.advertise<geometry_msgs::Vector3>("accelerations_control",100);
     geometry_msgs::Vector3 accelerations_des_var;
@@ -224,6 +227,7 @@ int main(int argc, char *argv[])
     std_msgs::Float64 z_des_var;
     geometry_msgs::Vector3 desired_attitude_var;
     geometry_msgs::Vector3 quav_att_euler;
+    geometry_msgs::Vector3 desired_pos_var;
 
     ros::Subscriber quad_vel_BF_sub = nh.subscribe("velocity_estimates", 100, &quadVelBFCallback); // Check if should be Body Frame or Inertial Frame
     ros::Subscriber quad_attVel_sub = nh.subscribe("attVel_estimates", 100, &quadAttVelCallback);
@@ -246,12 +250,13 @@ int main(int argc, char *argv[])
     alpha << 0.008, 0.008, 0.5;
     beta << 10, 10, 10;
 
-    Eigen::Vector3f Kp(10, 10, 3);
-    Eigen::Vector3f Kd(0, 0, 0);
+    Eigen::Vector3f Kp(2, 2, 11);
+    Eigen::Vector3f Ki(0.0, 0.0, 0.0); //0.5
+    Eigen::Vector3f Kd(0.001, 0.001, 3);  //0.01
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    quad_desired_pos << 0.0, 0.0, 1.0;
+    quad_desired_pos << -0.5, 0.0, 1.2;
     quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = 0.0;
@@ -310,22 +315,43 @@ int main(int argc, char *argv[])
 
         error = quad_desired_pos - quad_pos;
         error_dot = quad_desired_vel - quad_vel_BF;
+        
+        //If the error is not saturated, then error should be fed. Else, error is 0 to prevent I wind-up.
+        if (!saturation) {
+            for(int i = 0; i <= 2; i++) {
+                error_integrated(i) = error_integrated(i) + step_size * error(i);
+            }
+        }
+        else {
+            for(int i = 0; i <= 2; i++) {
+                error_integrated(i) = error_integrated(i) + step_size * 0.0;
+            }
+        }
 
         // Thrust calculation 
-        thrust = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) + gravity + Kp(2)*error(2) + Kd(2)*error_dot(2));
-        
+        float thrust_before_saturation = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) + gravity + Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2));
+        thrust = thrust_before_saturation;
+
         // Thrust saturation
         if (thrust < 0.0) {
             thrust = 0.0;
         }
-        else if (thrust > 20.0) {
-            thrust = 20.0;
+        else if (thrust > 15.0) {
+            thrust = 15.0;
         }
 
+        // This is the clamping condition, if the thrust is already saturated, we don't want the 
+        // integral term of the PID to keep adding control effort.
+        if (thrust_before_saturation == thrust) {
+            saturation = false;
+        }
+        else {
+            saturation = true;
+        }
         /////////////////Desired attitude//////////////////   
         attitude_desired(2) = 0.0; // For now, yaw is fixed     
         
-        roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Kd(1)*error_dot(1)));
+        roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Ki(0)*error_integrated(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Ki(1)*error_integrated(1) + Kd(1)*error_dot(1)));
         
         if (roll_des_arg > 1) {
             roll_des_arg = 1;
@@ -336,7 +362,14 @@ int main(int argc, char *argv[])
         
         attitude_desired(0) = asin(roll_des_arg); //Roll desired
 
-        pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
+        if (attitude_desired(0) > 0.16) {
+            attitude_desired(0) = 0.16;
+        }
+        else if (attitude_desired(0) < -0.16) {
+            attitude_desired(0) = -0.16;
+        }
+
+        pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Ki(0)*error_integrated(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
 
         //////////////////Saturating the desired roll and pitch rotations up to pi/2 to avoid singularities
         if (pitch_des_arg > 1) {
@@ -347,6 +380,13 @@ int main(int argc, char *argv[])
         }
 
         attitude_desired(1) = asin(pitch_des_arg); //Pitch desired
+        
+        if (attitude_desired(1) > 0.16) {
+            attitude_desired(1) = 0.16;
+        }
+        else if (attitude_desired(1) < -0.16) {
+            attitude_desired(1) = -0.16;
+        }
 
         //Publishing data
         //error
@@ -363,10 +403,15 @@ int main(int argc, char *argv[])
         asmc_var.z = asmc(2);
         //Thrust
         thrust_var.data = thrust;
+
+        desired_pos_var.x = quad_desired_pos(0);
+        desired_pos_var.y = quad_desired_pos(0);
+        desired_pos_var.z = quad_desired_pos(2);
+
         //Desired attitude and yaw rate
-        desired_attitude_var.x = attitude_desired(0);
-        desired_attitude_var.y = attitude_desired(1);
-        desired_attitude_var.z = attitude_desired(2);
+        desired_attitude_var.x = attitude_desired(0); //attitude_desired(0)
+        desired_attitude_var.y = attitude_desired(1); //attitude_desired(1)
+        desired_attitude_var.z = attitude_desired(2); //attitude_desired(2)
 
         ss_var.x = ss(0);
         ss_var.y = ss(1);
@@ -393,6 +438,7 @@ int main(int argc, char *argv[])
         error_dot_pub.publish(error_dot_var);
         ss_pub.publish(ss_var);
         attitude_euler.publish(quav_att_euler);
+        desired_pos_pub.publish(desired_pos_var);
 
         std::cout << "error: " << error << std::endl;
         //std::cout << "pitch_des " << attitude_desired(1) << std::endl;

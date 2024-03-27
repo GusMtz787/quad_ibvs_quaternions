@@ -125,7 +125,7 @@ def trajectory_cubic(x0, xf, x0_dot, xf_dot, x0_dot_dot, xf_dot_dot, time, inter
 if __name__ == '__main__':
 
     try:
-        t = np.arange(0,4)
+        t = np.arange(0,10) #time
 
         x0 = np.asarray([0,0,0])
         x0_dot = np.asarray([0,0,0])

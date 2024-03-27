@@ -4,6 +4,7 @@ import rospy
 import time
 import numpy as np
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Vector3
 from std_msgs.msg import Int32
 import math
 
@@ -18,29 +19,30 @@ SERVO_ENABLE = 1.00 #ms
 SERVO_MIN = SERVO_ENABLE + 0.3 #mS
 SERVO_MAX = 2.000 #
 
-pwm_signals = np.array([0.0, 0.0, 0.0, 0.0])
+pwm_signals = np.zeros(4)
 enable = 0 # 0 means DON'T start, 1 means START
 maxAngle = False
-attitude = np.array([0.0, 0.0, 0.0]) # Euler attitude in Radians
+attitude = np.zeros(3) # Euler attitude in Radians
 
 def fix_below_threshold(arr, threshold):
     # # Find the indices of elements below the threshold
-    # below_threshold_indices = arr < threshold
+    below_threshold_indices = arr < threshold
 
     # # Replace elements below the threshold with the replacement value
-    # arr[below_threshold_indices] = replacement_value
-    for i in range(len(arr)):
-        if arr[i] < threshold:
-            arr[i] = threshold
+    arr[below_threshold_indices] = threshold
+    # for i in range(len(arr)):
+    #     if arr[i] < threshold:
+    #         arr[i] = threshold
 
 
 def callback_pwm(pwms):
-    pwm_signals[0] = pwms.w * 0.001 
-    pwm_signals[1] = pwms.x * 0.001
-    pwm_signals[2] = pwms.y * 0.001
-    pwm_signals[3] = pwms.z * 0.001
+    # pwm_signals[0] = pwms.w * 0.001 
+    # pwm_signals[1] = pwms.x * 0.001
+    # pwm_signals[2] = pwms.y * 0.001
+    # pwm_signals[3] = pwms.z * 0.001
+    pwm_signals[:] = [pwms.w, pwms.x, pwms.y, pwms.z]
 
-    #fix_below_threshold(pwm_signals, SERVO_MIN)
+    fix_below_threshold(pwm_signals, SERVO_MIN)
 
 def callback_rcArm(msg):
     global enable
@@ -52,20 +54,10 @@ def callback_rcReset(msg):
     if (msg.data) == 1:
         maxAngle = False
 
-def callback_quaternion(att):
+def callback_attitude(att):
     global maxAngle
-    # Calculate Roll (around X-axis)
-    attitude[0] = math.atan2(2.0 * (att.w * att.y + att.w * att.x),
-                      1.0 - 2.0 * (att.x * att.x + att.y * att.y))
 
-    # Calculate Pitch (around Y-axis)
-    attitude[1] = math.asin(2.0 * (att.y * att.w - att.z * att.x))
-
-    # Calculate Yaw (around Z-axis)
-    attitude[2] = math.atan2(2.0 * (att.z * att.w + att.x * att.y),
-                     -1.0 + 2.0 * (att.w * att.w + att.x * att.x))
-
-    if (abs(attitude[0]) > 0.61 or abs(attitude[1]) > 0.61):
+    if (abs(att.x) > 0.61 or abs(att.y) > 0.61):
         maxAngle = True
 
 def sender():
@@ -75,8 +67,8 @@ def sender():
     rospy.Subscriber("pwm_values", Quaternion, callback_pwm)
     rospy.Subscriber("rcArm", Int32, callback_rcArm)
     rospy.Subscriber("rcReset", Int32, callback_rcReset)
-    rospy.Subscriber("attitude_QUAV", Quaternion, callback_quaternion)
-    pwm_values_final = rospy.Publisher('pwm_values_final', Quaternion, queue_size=10)
+    rospy.Subscriber("quav_attitude_euler", Vector3, callback_attitude)
+    pwm_values_final = rospy.Publisher('pwm_values_final', Quaternion, queue_size=1)
 
     rate = rospy.Rate(400) 
 
@@ -135,7 +127,7 @@ def sender():
 
                 pwm_values_final.publish(pwm_final)
 
-                rate.sleep()
+                #rate.sleep()
             
         finally:
             print("Disabling motors")

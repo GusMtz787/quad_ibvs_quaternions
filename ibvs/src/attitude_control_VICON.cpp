@@ -21,6 +21,7 @@ Eigen::Vector3f attitude_vel;
 
 Eigen::Vector3f error;
 Eigen::Vector3f error_dot;
+Eigen::Vector3f error_integrated(0.0, 0.0, 0.0);
 
 Eigen::Quaternionf quaternion_roll(0.0, 1.0, 0.0, 0.0);
 Eigen::Quaternionf attitude_quat(1.0, 0.0, 0.0, 0.0);
@@ -46,6 +47,7 @@ Eigen::Vector3f beta;
 Eigen::Vector3f tau; //tau_phi, //tau_theta //tau_psi
 
 float step_size = 0.01;
+bool saturation = false;
 
 ///////////////Quad's parameters/////////////////////
 float Jxx = 0.0411;
@@ -143,7 +145,7 @@ int main(int argc, char *argv[]) {
 
 	ros::init(argc, argv, "attitude_nftasmc_VICON");
 	ros::NodeHandle nh;
-	ros::Rate loop_rate(250);
+	ros::Rate loop_rate(300);
 	
 	ros::Subscriber desired_att_sub = nh.subscribe("desired_attitude",100, &attDesCallback);
 	ros::Subscriber quad_attitude_sub = nh.subscribe("attitude_QUAV",100, &attCallback);
@@ -155,7 +157,7 @@ int main(int argc, char *argv[]) {
 	geometry_msgs::Vector3 ss_att;	
 	geometry_msgs::Vector3 error_att;	
 	
-	ros::Publisher quad_torques_pub = nh.advertise<geometry_msgs::Vector3>("quad_torques",100);
+	ros::Publisher quad_torques_pub = nh.advertise<geometry_msgs::Vector3>("quad_torques",1);
 	ros::Publisher adaptive_gain_att_pub = nh.advertise<geometry_msgs::Vector3>("adaptive_gain_attitude",100);
 	ros::Publisher sigma_att_pub = nh.advertise<geometry_msgs::Vector3>("sigma_att",100);
 	ros::Publisher attitude_error_pub = nh.advertise<geometry_msgs::Vector3>("attitude_error",100);
@@ -175,8 +177,9 @@ int main(int argc, char *argv[]) {
 	// attitude_vel_des(0) = 0;
 	// attitude_vel_des(1) = 0;
 
-	Eigen::Vector3f Kp(3, 3, 2);
-	Eigen::Vector3f Kd(0.01, 0.01, 2);
+	Eigen::Vector3f Kp(0.1, 0.1, 0.1); // 1
+	Eigen::Vector3f Ki(0.08, 0.08, 0); //0.01
+	Eigen::Vector3f Kd(0.001, 0.001, 0.005); //0.01
 
 	attitude_vel_des << 0.0, 0.0, 0.0;
 	attitude_acc_des << 0.0, 0.0, 0.0;
@@ -218,19 +221,51 @@ int main(int argc, char *argv[]) {
 		error = attitude_des - attitude;
 		error_dot = attitude_vel_des - attitude_vel;
 
-		tau(0) = Jxx * (attitude_acc_des(0) - (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) + Kp(0)*error(0) + Kd(0)*error_dot(0));
-		tau(1) = Jyy * (attitude_acc_des(1) - (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) + Kp(1)*error(1) + Kd(1)*error_dot(1));
-		tau(2) = Jzz * (attitude_acc_des(2) - (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) + Kp(2)*error(2) + Kd(2)*error_dot(2));		
+		//If the error is not saturated, then error should be fed. Else, error is 0 to prevent I wind-up.
+        if (!saturation) { 
+            error_integrated(0) = error_integrated(0) + step_size * error(0);      
+            error_integrated(1) = error_integrated(1) + step_size * error(1);      
+            error_integrated(2) = error_integrated(2) + step_size * error(2);      
+        }
+        else {
+            for(int i = 0; i <= 2; i++) {
+                error_integrated(i) = error_integrated(i) + step_size * 0.0;
+            }
+        }
+
+		// tau(0) = Jxx * (attitude_acc_des(0) - (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) + Kp(0)*error(0) + Kd(0)*error_dot(0));
+		// tau(1) = Jyy * (attitude_acc_des(1) - (((Jzz-Jxx)/Jyy) * attitude_vel(0) * attitude_vel(2)) + Kp(1)*error(1) + Kd(1)*error_dot(1));
+		// tau(2) = Jzz * (attitude_acc_des(2) - (((Jxx-Jyy)/Jzz) * attitude_vel(0) * attitude_vel(1)) + Kp(2)*error(2) + Kd(2)*error_dot(2));		
 		
+		tau(0) = Kp(0)*error(0) + Ki(0)*error_integrated(0) + Kd(0)*error_dot(0);
+		tau(1) = Kp(1)*error(1) + Ki(1)*error_integrated(1) + Kd(1)*error_dot(1);
+		tau(2) = Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2);	
+
 		// Saturate torques for tests
-		// for(int i = 0; i < 3; i++) {
-		// 	if (tau(i) > 0.12) {
-		// 		tau(i) = 0.12;
-		// 	}
-		// 	if (tau(i) < -0.12) {
-		// 		tau(i) = -0.12;
-		// 	}
-		// }
+		if (tau(0) > 0.2) {
+			tau(0) = 0.2;
+			saturation = true;
+		}
+		if (tau(1) > 0.2) {
+			tau(1) = 0.2;
+			saturation = true;
+		}
+		if (tau(2) > 0.2) {
+			tau(2) = 0.2;
+			saturation = true;
+		}
+		if (tau(0) < -0.2) {
+			tau(0) = -0.2;
+			saturation = true;
+		}
+		if (tau(1) < -0.2) {
+			tau(1) = -0.2;
+			saturation = true;
+		}
+		if (tau(2) < -0.2) {
+			tau(2) = -0.2;
+			saturation = true;
+		}
 
 		quadTorques.x = tau(0); // tau(0)
 		quadTorques.y = tau(1); // tau(1)
@@ -253,7 +288,7 @@ int main(int argc, char *argv[]) {
 		sigma_att_pub.publish(ss_att);	
 		attitude_error_pub.publish(error_att);			
 			
-		std::cout << "Error_yaw " << error(2) << std::endl;
+		// std::cout << "Error_yaw " << error(2) << std::endl;
 		//std::cout << "Torque_pitch " << tau(1) << std::endl;
 
 		ros::spinOnce();
