@@ -57,7 +57,7 @@ def callback_rcReset(msg):
 def callback_attitude(att):
     global maxAngle
 
-    if (abs(att.x) > 0.61 or abs(att.y) > 0.61):
+    if (abs(att.x) > 0.75 or abs(att.y) > 0.75):
         maxAngle = True
 
 def sender():

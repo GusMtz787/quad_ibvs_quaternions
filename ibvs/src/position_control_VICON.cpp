@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
     
     e3 << 0,0,1;
     attitude_desired << 0.0, 0.0, 0.0;
-    quad_desired_pos << -0.5, 0.0, 1.2;
+    quad_desired_pos << 0.0, 0.0, 0.5;
     quad_desired_vel << 0.0, 0.0, 0.0;
 
     thrust_var.data = 0.0;
@@ -402,15 +402,15 @@ int main(int argc, char *argv[])
         asmc_var.y = asmc(1);
         asmc_var.z = asmc(2);
         //Thrust
-        thrust_var.data = thrust;
+        thrust_var.data = 13;
 
         desired_pos_var.x = quad_desired_pos(0);
         desired_pos_var.y = quad_desired_pos(0);
         desired_pos_var.z = quad_desired_pos(2);
 
         //Desired attitude and yaw rate
-        desired_attitude_var.x = attitude_desired(0); //attitude_desired(0)
-        desired_attitude_var.y = attitude_desired(1); //attitude_desired(1)
+        desired_attitude_var.x = 0.0; //attitude_desired(0)
+        desired_attitude_var.y = 0.0; //attitude_desired(1)
         desired_attitude_var.z = attitude_desired(2); //attitude_desired(2)
 
         ss_var.x = ss(0);

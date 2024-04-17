@@ -7,7 +7,7 @@
   </node>
   
   <!-- ATTITUDE CONTROL NODE -->
-  <node name="attitude_ctrl_VICON" pkg="ibvs" type="attitude_ctrl_node_VICON">
+  <node name="attitude_ctrl_VICON" pkg="ibvs" type="attitude_ctrl_node_VICON" output="screen">
   </node>
   
   <!-- POSITION CONTROL NODE -->

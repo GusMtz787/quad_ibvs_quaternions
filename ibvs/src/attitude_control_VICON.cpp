@@ -10,6 +10,9 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
 //Including Eigen library
 #include <eigen3/Eigen/Dense>
 
@@ -25,6 +28,10 @@ Eigen::Vector3f error_integrated(0.0, 0.0, 0.0);
 
 Eigen::Quaternionf quaternion_roll(0.0, 1.0, 0.0, 0.0);
 Eigen::Quaternionf attitude_quat(1.0, 0.0, 0.0, 0.0);
+
+Eigen::Vector3f Kp(0.0, 0.0, 0.0); //0.742
+Eigen::Vector3f Ki(0.0, 0.0, 0.0); //0.01
+Eigen::Vector3f Kd(0.0, 0.0, 0.0); //0.001, 0.001, 0.005
 
 ////////////////////Sliding surface and ASMC///////////////////
 Eigen::Vector3f ss;
@@ -85,6 +92,17 @@ float sign(float value) {
 	}
 	
 	return result;
+}
+
+// Function to split a string based on a delimiter
+std::vector<std::string> split(const std::string &s, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
 }
 
 // Callbacks
@@ -177,9 +195,59 @@ int main(int argc, char *argv[]) {
 	// attitude_vel_des(0) = 0;
 	// attitude_vel_des(1) = 0;
 
-	Eigen::Vector3f Kp(0.1, 0.1, 0.1); // 1
-	Eigen::Vector3f Ki(0.08, 0.08, 0); //0.01
-	Eigen::Vector3f Kd(0.001, 0.001, 0.005); //0.01
+	// Define the file name
+    std::string filename = "/home/pi/catkin_ws/src/ibvs/attitudeParams.csv";
+
+    // Create an input file stream object
+    std::ifstream file(filename);
+
+    // Check if the file is opened successfully
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return 1; // Return error code
+    }
+
+    // Read and print each line from the file
+    std::string line;
+
+	// Counter variable to track the line number
+    int lineNumber = 0;
+
+    while (std::getline(file, line) && lineNumber < 3) {
+        // Split the line into tokens based on comma delimiter
+        std::vector<std::string> tokens = split(line, ',');
+		
+		// Erase the first element
+		tokens.erase(tokens.begin());
+        
+		if (lineNumber == 0) {
+			Kp(0) = std::stof(tokens[0]);
+			Kp(1) = std::stof(tokens[1]);
+			Kp(2) = std::stof(tokens[2]);
+		}
+		
+		if (lineNumber == 1) {
+			Ki(0) = std::stof(tokens[0]);
+			Ki(1) = std::stof(tokens[1]);
+			Ki(2) = std::stof(tokens[2]);
+		}
+
+		if (lineNumber == 2) {
+			Kd(0) = std::stof(tokens[0]);
+			Kd(1) = std::stof(tokens[1]);
+			Kd(2) = std::stof(tokens[2]);
+		}
+		
+		lineNumber++;
+    }
+
+	std::cout << Kp << std::endl;
+	std::cout << Ki << std::endl;
+	std::cout << Kd << std::endl;
+
+    // Close the file
+    file.close();
+
 
 	attitude_vel_des << 0.0, 0.0, 0.0;
 	attitude_acc_des << 0.0, 0.0, 0.0;
@@ -225,12 +293,15 @@ int main(int argc, char *argv[]) {
         if (!saturation) { 
             error_integrated(0) = error_integrated(0) + step_size * error(0);      
             error_integrated(1) = error_integrated(1) + step_size * error(1);      
-            error_integrated(2) = error_integrated(2) + step_size * error(2);      
+            error_integrated(2) = error_integrated(2) + step_size * error(2);  
+			std::cout << error_integrated << std::endl;    
         }
         else {
             for(int i = 0; i <= 2; i++) {
-                error_integrated(i) = error_integrated(i) + step_size * 0.0;
+                error_integrated(i) = 0.0;
             }
+			std::cout << "Saturated" << std::endl;  
+			saturation = false;  
         }
 
 		// tau(0) = Jxx * (attitude_acc_des(0) - (((Jyy-Jzz)/Jxx) * attitude_vel(1) * attitude_vel(2)) + Kp(0)*error(0) + Kd(0)*error_dot(0));
@@ -242,34 +313,34 @@ int main(int argc, char *argv[]) {
 		tau(2) = Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2);	
 
 		// Saturate torques for tests
-		if (tau(0) > 0.2) {
-			tau(0) = 0.2;
+		// if (tau(0) > 0.5) {
+		// 	tau(0) = 0.5;
+		// 	saturation = true;
+		// }
+		if (tau(1) > 0.5) {
+			tau(1) = 0.5;
 			saturation = true;
 		}
-		if (tau(1) > 0.2) {
-			tau(1) = 0.2;
+		// if (tau(2) > 0.5) {
+		// 	tau(2) = 0.5;
+		// 	saturation = true;
+		// }
+		// if (tau(0) < -0.5) {
+		// 	tau(0) = -0.5;
+		// 	saturation = true;
+		// }
+		if (tau(1) < -0.5) {
+			tau(1) = -0.5;
 			saturation = true;
 		}
-		if (tau(2) > 0.2) {
-			tau(2) = 0.2;
-			saturation = true;
-		}
-		if (tau(0) < -0.2) {
-			tau(0) = -0.2;
-			saturation = true;
-		}
-		if (tau(1) < -0.2) {
-			tau(1) = -0.2;
-			saturation = true;
-		}
-		if (tau(2) < -0.2) {
-			tau(2) = -0.2;
-			saturation = true;
-		}
+		// if (tau(2) < -0.5) {
+		// 	tau(2) = -0.5;
+		// 	saturation = true;
+		// }
 
-		quadTorques.x = tau(0); // tau(0)
+		quadTorques.x = 0.0; // tau(0)
 		quadTorques.y = tau(1); // tau(1)
-		quadTorques.z = tau(2);
+		quadTorques.z = 0.0;
 		
 		adaptive_gains_att.x = K1(0);
 		adaptive_gains_att.y = K1(1);
