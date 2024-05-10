@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
         asmc_var.y = asmc(1);
         asmc_var.z = asmc(2);
         //Thrust
-        thrust_var.data = 13;
+        thrust_var.data = thrust;
 
         desired_pos_var.x = quad_desired_pos(0);
         desired_pos_var.y = quad_desired_pos(0);

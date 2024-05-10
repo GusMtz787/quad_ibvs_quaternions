@@ -313,34 +313,34 @@ int main(int argc, char *argv[]) {
 		tau(2) = Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2);	
 
 		// Saturate torques for tests
-		// if (tau(0) > 0.5) {
-		// 	tau(0) = 0.5;
-		// 	saturation = true;
-		// }
-		if (tau(1) > 0.5) {
-			tau(1) = 0.5;
+		if (tau(0) > 0.5) {
+			tau(0) = 0.5;
 			saturation = true;
 		}
+		// if (tau(1) > 0.5) {
+		// 	tau(1) = 0.5;
+		// 	saturation = true;
+		// }
 		// if (tau(2) > 0.5) {
 		// 	tau(2) = 0.5;
 		// 	saturation = true;
 		// }
-		// if (tau(0) < -0.5) {
-		// 	tau(0) = -0.5;
-		// 	saturation = true;
-		// }
-		if (tau(1) < -0.5) {
-			tau(1) = -0.5;
+		if (tau(0) < -0.5) {
+			tau(0) = -0.5;
 			saturation = true;
 		}
+		// if (tau(1) < -0.5) {
+		// 	tau(1) = -0.5;
+		// 	saturation = true;
+		// }
 		// if (tau(2) < -0.5) {
 		// 	tau(2) = -0.5;
 		// 	saturation = true;
 		// }
 
-		quadTorques.x = 0.0; // tau(0)
+		quadTorques.x = tau(0); // tau(0)
 		quadTorques.y = tau(1); // tau(1)
-		quadTorques.z = 0.0;
+		quadTorques.z = tau(2);
 		
 		adaptive_gains_att.x = K1(0);
 		adaptive_gains_att.y = K1(1);
