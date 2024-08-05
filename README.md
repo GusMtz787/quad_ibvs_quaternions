@@ -53,7 +53,7 @@ Consider that, for the PID controller algorithm, only the files ending with the 
 As such, the desired position, attitude and velocity of the drone to which the user would like the drone to follow is set within the _position_control_VICON.cpp_ file, these can be set within lines 258 to 260:
 
 `
-attitude_desired << 0.0, 0.0, 0.0; <br />
-quad_desired_pos << 0.0, 0.0, 0.5; <br />
+attitude_desired << 0.0, 0.0, 0.0; \
+quad_desired_pos << 0.0, 0.0, 0.5; \
 quad_desired_vel << 0.0, 0.0, 0.0;
 `
