@@ -3,7 +3,7 @@
 
 # Files to not ignore
 !/.gitignore
-!/readme.md
+!README.md
 
 # Folder to not ignore
 !/ibvs
