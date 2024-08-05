@@ -38,7 +38,7 @@ Now that the Arudpilot's service is disabled, the QUAV can be flown autonomously
 
 ## Code explanation
 
-Now the code that makes the drone work will be explained. For the whole system to work, several nodes need to be running within ROS. As seen in the _quad_VICON.launch_ file, the needed nodes to fly the system are the following: 
+All the code that enables a proper functioning of the QUAV will be explained in this section. For the whole system to work, several nodes need to be running within ROS. As seen in the _quad_VICON.launch_ file, the needed nodes to fly the system are the following:
 
 - Position node: controls the position of the QUAV.
 - Attitude node: controls the attitude of the QUAV.
@@ -46,4 +46,14 @@ Now the code that makes the drone work will be explained. For the whole system t
 - PWM publisher node: calculates the PWM signals needed to control the QUAV based on the information of the position and attitude nodes.
 - PWM sender node: sends the PWM signals previously calculated to the ESCs.
 - Estimator node: this node is in charge of estimating the velocities and accelerations of the QUAV based on the data extracted from the VICON camera system.
-- VICON node: this node was adopted from the ETH repository that can be found in the following link [https://github.com/ethz-asl/vicon_bridge](https://github.com/ethz-asl/vicon_bridge). This node acquires the information from the VICON camera system using a socket.
+- VICON node: this node was adopted from a ETH university's repository that can be found in the following link [https://github.com/ethz-asl/vicon_bridge](https://github.com/ethz-asl/vicon_bridge). This node acquires the information from the VICON camera system using a socket.
+
+Consider that, for the PID controller algorithm, only the files ending with the VICON termination were used. If in doubt of which files are important, check the _quad_VICON.launch_ and verify the scripts used for each of the nodes.
+
+As such, the desired position, attitude and velocity of the drone to which the user would like the drone to follow is set within the _position_control_VICON.cpp_ file, these can be set within lines 258 to 260:
+
+`
+attitude_desired << 0.0, 0.0, 0.0;
+quad_desired_pos << 0.0, 0.0, 0.5;
+quad_desired_vel << 0.0, 0.0, 0.0;
+`
