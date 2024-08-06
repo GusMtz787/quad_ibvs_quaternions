@@ -1,7 +1,5 @@
 # QUAV start-up guide
 
-Maintainer: Gustavo Olivas
-
 This document provides a **guide to fly a QUAV** built in the Multi-Robot Systems Laboratory at Tecnológico de Monterrey, Monterrey Campus. The drone is able to fly in two modes: **manual and autonomous**. As to July 2024 the quad-rotor manages a **Raspberry Pi 4** computer paired with a **NAVIO2 autopilot hat** device. What was done up until the mentioned date was a design of a low-level **PID control algorithm** that allows the quad-rotor (QUAV) to stabilize itself using the incoming data from a **VICON Valkyrie** camera system. The Robot Operating System (ROS) framework, C++ and Python programming languages were used for the complete system to work.
 
 It should be noted that this intended goal was not achieved to its entirety, _i.e._ some of the tests showed succesfull results, but other tests did not. There is a hypothesis to this and this will be explained at the end of this document.
@@ -10,31 +8,45 @@ All the software development regarding the interaction with the NAVIO2-Ardupilot
 
 ## Powering up
 
-**Safety measure recommended:** if this is your first time working with this type of drone-computer system, the propellers should be **removed** from the motors before powering up the drone as a safety measure.
+> **Safety measure recommended:** if this is your first time working with this type of drone-computer system, the propellers should be **removed** from the motors before powering up the drone as a safety measure.
 
 1. To start the quad-rotor first connect the Li-Po battery to the NAVIO2's voltage divider. Consider that the Li-PO battery should have an optimal complete charge of 12.56 V for maximum flight duration, charge it if it is below 11.3 V.
+
 1. Afterwards, connect the smaller voltage divider's cable to the input of the NAVIO2's power module (which will power the main Raspberry computer too) and connect the larger cable of the voltage divider's to the motor's distribution board. You will hear beeps from the motors while the NAVIO2's autopilot (Ardupilot) starts. As to the date mentioned, the autopilot was set to start automatically when powering the Raspberry.
+
 1. Once the autopilot is automatically engaged, the beeps will stop and this means that the drone is ready to fly. You can also verify this with the upper LED from the NAVIO2, whenever it is ready to fly, this should be as a steady blue. If it is uncalibrated or starting, this will be yellow.
 
 ## Manual flying, the fun part
 
-**Be specially CAREFUL** at this step since the QUAV is able to fly now if enabled. The upper left-side gauge of the Radioshack controller will start the motors. Flip it downwards if you want the motors to start, now the drone can be flown. Otherwise, mantain it in the upper position.
+> **Safety measure recommended:** Be **specially CAREFUL** at this step since the QUAV is able to fly now if enabled.
+
+The **activation and deactivation** of the motors works with the **upper left-side gauge** of the Radioshack controller, this will start the motors. Flip it downwards if you want the motors to start, now the drone can be flown. Otherwise, mantain it in the upper position.
 
 ## Autonomous flying
 
-The autonomous flying mode is achieved by disabling the Ardupilot autopilot. This is a very simple operation and can be found in the official documentation. To disable the Ardupilot autopilot run the following command in a terminal from the QUAV's Raspberry computer:
+The autonomous flying mode is achieved by **disabling the Ardupilot autopilot**. This is a very simple operation and can be found in the official documentation. To **disable** the Ardupilot autopilot run the following command in a terminal from the QUAV's Raspberry computer:
 
 `pi@navio: ~ $ sudo systemctl stop arducopter`
 
-**Tip:** in case you want to start the Ardupilot's service once again, just run the following command:
+You should start hearing the motors making some noises, this happens everytime Ardupilot's service is correctly stopped.
+
+> **Tip:** in case you want to **start** the Ardupilot's service once again, just run the following command:
 
 `pi@navio: ~ $ sudo systemctl start arducopter`
 
-Now that the Arudpilot's service is disabled, the QUAV can be flown autonomously. **Be very careful** since the QUAV will now be able to fly by its own. To do this, go to a terminal and execute the following command:
+Now that the Arudpilot's service is disabled, the QUAV can be flown autonomously and the command to do this will be explained after the following safety recommendations.
+
+> **Safety measure recommended:** Be very **CAREFUL** since in this step the QUAV will now be able to **fly by its own**. It is recommended in this stage, even if you are experienced with QUAVs, to tie the quadrotor to a rope within the experimental area. As of July 2024, there is a specific hook in the laboratory to connect a rope to the quadrotor. In case you need to abort the autonomous flying, you can control that the drone does not fall using the rope.
+
+**WARNING:** before launching the drone, read the following safety tip to know how to stop the QUAV during tests.
+
+> **Safety tip:** if for any reason you want to terminate the quadcopter's routine, **press Ctrl-C** on the same terminal were you will run the roslaunch command. The **drone should stop** once the Ctrl-C command is pressed. Consider there may be a little time delay and that the drone will **fall** if the command was executed while flying and the drone was not secured with a rope.
+
+Now that you know the safety measures to stop the drone for an emergency, **open a terminal** and run the following roslaunch file:
 
 `pi@navio: ~ $ roslaunch ibvs quad_VICON.launch`
 
-**Security tip:** if you want to terminate the quadcopter's flying, press Ctrl-C on the same terminal were you ran the previous roslaunch command. The drone should stop once the Ctrl-C command is pressed. Consider there may be a little time delay and that the drone will **fall** if the command was executed while flying.
+If you disabled the Ardupilot's service, you should now see the quadrotor power its motors by itself. If you have worked with ROS before, you know that the roslaunch has launched all the necessary nodes needed for the proper working of the drone. In the following section, this nodes will be properly discussed.
 
 ## Code explanation
 
@@ -52,6 +64,8 @@ Consider that, for the PID controller algorithm, only the files ending with the 
 
 As such, the desired position, attitude and velocity of the drone to which the user would like the drone to follow is set within the _position_control_VICON.cpp_ file, these can be set within lines 258 to 260:
 
-`attitude_desired << 0.0, 0.0, 0.0;`
-`quad_desired_pos << 0.0, 0.0, 0.5;`
-`quad_desired_vel << 0.0, 0.0, 0.0;`
+```c++
+attitude_desired << 0.0, 0.0, 0.0;
+quad_desired_pos << 0.0, 0.0, 0.5;
+quad_desired_vel << 0.0, 0.0, 0.0;
+```
