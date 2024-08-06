@@ -1,6 +1,6 @@
 # QUAV start-up guide
 
-This document provides a **guide to fly a QUAV** built in the Multi-Robot Systems Laboratory at Tecnológico de Monterrey, Monterrey Campus. The drone is able to fly in two modes: **manual and autonomous**. As to July 2024 the quad-rotor manages a **Raspberry Pi 4** computer paired with a **NAVIO2 autopilot hat** device. What was done up until the mentioned date was a design of a low-level **PID control algorithm** that allows the quad-rotor (QUAV) to stabilize itself using the incoming data from a **VICON Valkyrie** camera system. The Robot Operating System (ROS) framework, C++ and Python programming languages were used for the complete system to work.
+This document provides a **guide to fly a QUAV** built in the Multi-Robot Systems Laboratory at Tecnológico de Monterrey, Monterrey Campus. The drone is able to fly in two modes: **manual and autonomous**. As to July 2024 the quad-rotor integrates a **Raspberry Pi 4** computer paired with a **NAVIO2 autopilot hat** device. What was done up until the mentioned date was a design of a low-level **PID control algorithm** that allows the quad-rotor (QUAV) to stabilize itself using the incoming data from a **VICON Valkyrie** camera system. The Robot Operating System (ROS) framework, C++ and Python programming languages were used for the complete system to work.
 
 It should be noted that this intended goal was not achieved to its entirety, _i.e._ some of the tests showed succesfull results, but other tests did not. There is a hypothesis to this and this will be explained at the end of this document.
 
@@ -62,6 +62,8 @@ All the code that **enables a proper functioning** of the QUAV will be explained
 
 Consider that, for the PID controller algorithm, only the files ending with the VICON termination were used. If in doubt of which files are relevant to fly the QUAV with the PID controller, check the _quad_VICON.launch_ and verify the scripts used for each of the nodes.
 
+### Position node
+
 As such, the **desired position**, attitude and velocity of the drone to which the user would like the drone to follow is set within the **position node**, more specifically, the _position_control_VICON.cpp_ file and these can be set within lines 258 to 260:
 
 ```c++
@@ -107,6 +109,8 @@ pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Ki(0)*error_integrated
 attitude_desired(1) = asin(pitch_des_arg); //Pitch desired    
 ```
 
+### Attitude node
+
 Now that the thrust and desired angles are known, the only pending variable to calculate are the torques. For this, the **attitude** node is in charge, the _attitude_control_VICON.cpp_ handles this calculation by first specifying the **desired velocities and accelerations** (lines 252 and 253):
 
 ```c++
@@ -135,6 +139,8 @@ tau(2) = Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2);
 
 Now that the control inputs of the system have been calculated (thrust and torques) a **mapping** from thrust/torques to PWM is performed. This is achieved thanks to what is known as the allocation matrix. This is a matrix that relates the torque/thrust variable as a vector with the needed PWM vector based on several factors that will be further explained. As such, the node **PWM calculation node** is the next one to be discussed.
 
+### PWM calculation node
+
 The _pwms.cpp_ file contains the essential elements to relate the **control inputs** to the **PWM signals**. First of all, there is a correlation that can be drawn between the control inputs $\boldsymbol{y} \in \mathbb{R}^{4} $ and the velocities of the motors squared $\boldsymbol{x} \in \mathbb{R}^{4}$ is given by the allocation matrix $\boldsymbol{A} \in \mathbb{R}^{4 \times 4}$ as expressed in the following equation:
 
 $$\boldsymbol{y} = \boldsymbol{A} \boldsymbol{x}$$
@@ -151,7 +157,11 @@ $$
 \end{bmatrix}
 $$
 
-where $C_{T}$ describes the coefficient of thrust, $C_{D}$ stands for the torque coefficient, $L$ represents the length of the arm from the center of mass to the rotor and $\theta$ represents the angle from each of arms of the drone with respect to its centerline in radians. In this case, since a quad-rotor is being studied, the angle is $\theta = 45° = \pi/4$. Therefore the allocation matrix can be represented as
+where $C_{T}$ describes the coefficient of thrust, $C_{D}$ stands for the torque coefficient, $L$ represents the length of the arm from the center of mass to the rotor and $\theta$ represents the angle from each of arms of the drone with respect to its centerline in radians. In this case, since a quad-rotor is being studied, the angle is $\theta = 45° = \pi/4$. Plus, the signs are considered depending on body frame used, in this case the NED (North-East-Down) frame was chosen.
+
+> **Note:** for matrix $\boldsymbol{A}$, the order of the motors 1,2,3,4 was considered as 1 being the upper-left motor, 2 the downward-left, 3 the upper-right, and 4 the downward-right.
+
+Finally the allocation matrix can be represented as:
 
 $$
 \boldsymbol{A} =
@@ -238,13 +248,13 @@ This same procedure is found in line 73:
 omega << A.inverse() * control_inputs; 
 ```
 
-Now the velocity squared is known, remember that the vector $\boldsymbol{x}$ has its elements squared by the own nature of the equation. Ideally it would be needed to have the velocities without the square. However, they are left squared for a specific reason that is going to be discussed now. To obtain the value of a PWM based on the velocity of the motor, experimental tests can be performed on a dynamometer using a motor from the quadrotor. In the laboratory, the relationship that was found is expressed in the following equation:
+Now the velocity squared is known, remember that the vector $\boldsymbol{x}$ has its elements squared by the own nature of the equation. Ideally it would be needed to have the velocities without the square. However, they are left squared for a specific reason that is going to be discussed now. To obtain the **value of a PWM** based on the **velocity of the motor**, experimental tests can be performed on a **dynamometer** using a motor from the quadrotor. In the laboratory, the relationship that was found is expressed in the following equation:
 
 $$ \text{PWM} = -0.000000001149 \, \Omega^{4} + 0.00226 \, \Omega^{2} + 1118$$
 
 As it can be seen, the first $\Omega$ is raised to the fourth power and the second one is squared. As such, there is no need to perform a square root operations to the squared velocities that were found.
 
-Therefore, the PWM values for all 4 motors are calculated in lines 75 to 78:
+Therefore, the **PWM values** for all 4 motors are calculated in lines 75 to 78:
 
 ```c++
 pwm_signal(0) = -0.000000001149 * powf(omega(0), 2) + 0.00226 * omega(0) + 1118;
@@ -255,3 +265,18 @@ pwm_signal(2) = -0.000000001149 * powf(omega(2), 2) + 0.00226 * omega(2) + 1118;
 
 pwm_signal(3) = -0.000000001149 * powf(omega(3), 2) + 0.00226 * omega(3) + 1118;
 ```
+
+Before closing the topic regarding the PWM calculation, it must be noted that at this moment the PWMs are represented in micro-seconds. However, the hardware requires the value in mili-seconds, as such a last operation is performed to transform them from micro- to mili-seconds:
+
+```c++
+pwm_values.w = pwm_signal(3) * 0.001;
+pwm_values.x = pwm_signal(1) * 0.001;
+pwm_values.y = pwm_signal(0) * 0.001;
+pwm_values.z = pwm_signal(2) * 0.001;
+```
+
+> **Note:** the order of the PWMs were changed, there are several things affecting this. The variable _pwm_values_ contains the correct order in which the output pins of the NAVIO2 are conected with respect to the motors, considering w,x,y,z, as motors 1,2,3,4 respectively. Taking into account that motor 1 is the upper-right one, 2 the downward-left, 3 upper-left, and finally 4 the downward-right one.
+
+### PWM sender node
+
+Now that the PWM values are known
