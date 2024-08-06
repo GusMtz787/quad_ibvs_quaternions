@@ -85,7 +85,7 @@ Using this information, the **thrust** (line 322),
 float thrust_before_saturation = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) + gravity + Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2));
 ```
 
-and **desired angles** (lines 352, 363, and 382) are also calculated.
+and **desired angles** (lines 352, 363, and 382) are also calculated according to the **PID controller**.
 
 ```c++
 attitude_desired(2) = 0.0; // For now, yaw is fixed     
@@ -107,3 +107,151 @@ pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Ki(0)*error_integrated
 attitude_desired(1) = asin(pitch_des_arg); //Pitch desired    
 ```
 
+Now that the thrust and desired angles are known, the only pending variable to calculate are the torques. For this, the **attitude** node is in charge, the _attitude_control_VICON.cpp_ handles this calculation by first specifying the **desired velocities and accelerations** (lines 252 and 253):
+
+```c++
+attitude_vel_des << 0.0, 0.0, 0.0;
+attitude_acc_des << 0.0, 0.0, 0.0;
+```
+
+remembering that the **desired angles** were previously set in the **position node**, and properly **passed to the attitude node**, the next step is calculating an **error** between the desired and real angles (lines 289 and 290):
+
+```c++
+error = attitude_des - attitude;
+error_dot = attitude_vel_des - attitude_vel;
+```
+
+knowing the error between the desired and actual angular position allows the calculation of the needed **torques** following the **PID formulation** (lines 311, 312, and 313):
+
+```c++
+tau(0) = Kp(0)*error(0) + Ki(0)*error_integrated(0) + Kd(0)*error_dot(0);
+
+tau(1) = Kp(1)*error(1) + Ki(1)*error_integrated(1) + Kd(1)*error_dot(1);
+
+tau(2) = Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2);
+```
+
+> **Note:** Due to a testing phase some of the variables were saturated and others were not, when tuning the drone all variables should be saturated. These saturation limits may be experimental or can be previously calculated according to the available electronics and equipment. Therefore the **limits should be adjusted according** to the system and enabled for all variables.
+
+Now that the control inputs of the system have been calculated (thrust and torques) a **mapping** from thrust/torques to PWM is performed. This is achieved thanks to what is known as the allocation matrix. This is a matrix that relates the torque/thrust variable as a vector with the needed PWM vector based on several factors that will be further explained. As such, the node **PWM calculation node** is the next one to be discussed.
+
+The _pwms.cpp_ file contains the essential elements to relate the **control inputs** to the **PWM signals**. First of all, there is a correlation that can be drawn between the control inputs $\boldsymbol{y} \in \mathbb{R}^{4} $ and the velocities of the motors squared $\boldsymbol{x} \in \mathbb{R}^{4}$ is given by the allocation matrix $\boldsymbol{A} \in \mathbb{R}^{4 \times 4}$ as expressed in the following equation:
+
+$$\boldsymbol{y} = \boldsymbol{A} \boldsymbol{x}$$
+
+the allocation matrix contains information about the QUAV's model:
+
+$$
+\boldsymbol{A} =
+\begin{bmatrix}
+    C_{T}   &   C_{T}   &   C_{T}   &   C_{T} \\
+    \sin(\theta) L C_{T}  &   \sin(\theta) L C_{T}  &   -\sin(\theta) L C_{T} &   -\sin(\theta) L C_{T} \\
+    -\sin(\theta) L C_{T}  &   \sin(\theta) L C_{T} &   \sin(\theta) L C_{T} &   -\sin(\theta) L C_{T} \\
+    C_D    &   -C_D &   C_D    &   -C_D
+\end{bmatrix}
+$$
+
+where $C_{T}$ describes the coefficient of thrust, $C_{D}$ stands for the torque coefficient, $L$ represents the length of the arm from the center of mass to the rotor and $\theta$ represents the angle from each of arms of the drone with respect to its centerline in radians. In this case, since a quad-rotor is being studied, the angle is $\theta = 45° = \pi/4$. Therefore the allocation matrix can be represented as
+
+$$
+\boldsymbol{A} =
+\begin{bmatrix}
+    C_{T}   &   C_{T}   &   C_{T}   &   C_{T} \\
+    0.7071 L C_{T}  &   0.7071 L C_{T}  &   -0.7071 L C_{T} &   -0.7071 L C_{T} \\
+    -0.7071 L C_{T}  &   0.7071 L C_{T} &   0.7071 L C_{T} &   -0.7071 L C_{T} \\
+    C_D    &   -C_D &   C_D    &   -C_D
+\end{bmatrix}
+$$
+
+This same matrix was declared in the _pwms.cpp_ file in line 29 with the funky-looking C++ Eigen library sintax:
+
+```c++
+static Eigen::Matrix4f A = (Eigen::Matrix4f() << thrust_coefficient, thrust_coefficient, thrust_coefficient, thrust_coefficient,
+L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient,
+-L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, L * sin_pi_4 * thrust_coefficient, -L * sin_pi_4 * thrust_coefficient,
+torque_coefficient, -torque_coefficient, torque_coefficient, -torque_coefficient).finished();
+```
+
+Finally, the whole equation can be expanded using the appropriate terms for clarity:
+
+$$
+\begin{equation}
+    \begin{bmatrix}
+        T_h \\
+        \tau_\phi \\
+        \tau_\theta \\
+        \tau_\psi \\
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        C_{T}   &   C_{T}   &   C_{T}   &   C_{T} \\
+        0.7071 L C_{T}  &   0.7071 L C_{T}  &   -0.7071 L C_{T} &   -0.7071 L C_{T} \\
+        -0.7071 L C_{T}  &   0.7071 L C_{T} &   0.7071 L C_{T} &   -0.7071 L C_{T} \\
+        C_D    &   -C_D &   C_D    &   -C_D
+    \end{bmatrix}
+    \begin{bmatrix}
+        \Omega_{1}^{2} \\
+        \Omega_{2}^{2} \\
+        \Omega_{3}^{2} \\
+        \Omega_{4}^{2} \\
+    \end{bmatrix}
+    \notag
+\end{equation}
+$$
+
+where the control inputs vector $\boldsymbol{x}$ is already known and the speeds are the ones that need to be solved for, therefore:
+
+$$
+\boldsymbol{x} = \boldsymbol{A}^{-1} \boldsymbol{y}
+$$
+
+as such:
+
+$$
+\begin{equation}
+    \begin{bmatrix}
+        \Omega_{1}^{2} \\
+        \Omega_{2}^{2} \\
+        \Omega_{3}^{2} \\
+        \Omega_{4}^{2} \\
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        C_{T}   &   C_{T}   &   C_{T}   &   C_{T} \\
+        0.7071 L C_{T}  &   0.7071 L C_{T}  &   -0.7071 L C_{T} &   -0.7071 L C_{T} \\
+        -0.7071 L C_{T}  &   0.7071 L C_{T} &   0.7071 L C_{T} &   -0.7071 L C_{T} \\
+        C_D    &   -C_D &   C_D    &   -C_D
+    \end{bmatrix}^{-1}
+    \begin{bmatrix}
+        T_h \\
+        \tau_\phi \\
+        \tau_\theta \\
+        \tau_\psi \\
+    \end{bmatrix}
+    \notag
+\end{equation}
+$$
+
+This same procedure is found in line 73:
+
+```c++
+omega << A.inverse() * control_inputs; 
+```
+
+Now the velocity squared is known, remember that the vector $\boldsymbol{x}$ has its elements squared by the own nature of the equation. Ideally it would be needed to have the velocities without the square. However, they are left squared for a specific reason that is going to be discussed now. To obtain the value of a PWM based on the velocity of the motor, experimental tests can be performed on a dynamometer using a motor from the quadrotor. In the laboratory, the relationship that was found is expressed in the following equation:
+
+$$ \text{PWM} = -0.000000001149 \, \Omega^{4} + 0.00226 \, \Omega^{2} + 1118$$
+
+As it can be seen, the first $\Omega$ is raised to the fourth power and the second one is squared. As such, there is no need to perform a square root operations to the squared velocities that were found.
+
+Therefore, the PWM values for all 4 motors are calculated in lines 75 to 78:
+
+```c++
+pwm_signal(0) = -0.000000001149 * powf(omega(0), 2) + 0.00226 * omega(0) + 1118;
+
+pwm_signal(1) = -0.000000001149 * powf(omega(1), 2) + 0.00226 * omega(1) + 1118;
+
+pwm_signal(2) = -0.000000001149 * powf(omega(2), 2) + 0.00226 * omega(2) + 1118;
+
+pwm_signal(3) = -0.000000001149 * powf(omega(3), 2) + 0.00226 * omega(3) + 1118;
+```
