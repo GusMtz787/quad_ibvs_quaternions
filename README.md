@@ -48,24 +48,62 @@ Now that you know the safety measures to stop the drone for an emergency, **open
 
 If you disabled the Ardupilot's service, you should now see the quadrotor power its motors by itself. If you have worked with ROS before, you know that the roslaunch has launched all the necessary nodes needed for the proper working of the drone. In the following section, this nodes will be properly discussed.
 
-## Code explanation
+## Code
 
-All the code that enables a proper functioning of the QUAV will be explained in this section. For the whole system to work, several nodes need to be running within ROS. As seen in the _quad_VICON.launch_ file, the needed nodes to fly the system are the following:
+All the code that **enables a proper functioning** of the QUAV will be explained in this section. For the whole system to work, **several nodes** need to be running within ROS. As seen in the _quad_VICON.launch_ file, the needed nodes for the system to fly are the following:
 
-- Position node: controls the position of the QUAV.
-- Attitude node: controls the attitude of the QUAV.
-- Radio control node: establishes communication between the radio controller and the main computer.
-- PWM publisher node: calculates the PWM signals needed to control the QUAV based on the information of the position and attitude nodes.
-- PWM sender node: sends the PWM signals previously calculated to the ESCs.
-- Estimator node: this node is in charge of estimating the velocities and accelerations of the QUAV based on the data extracted from the VICON camera system.
-- VICON node: this node was adopted from a ETH university's repository that can be found in the following link [https://github.com/ethz-asl/vicon_bridge](https://github.com/ethz-asl/vicon_bridge). This node acquires the information from the VICON camera system using a socket.
+- **Position node:** controls the position of the QUAV.
+- **Attitude node:** controls the attitude of the QUAV.
+- **Radio control node:** establishes communication between the radio controller and the main computer.
+- **PWM publisher node:** calculates the PWM signals needed to control the QUAV based on the information of the position and attitude nodes.
+- **PWM sender node:** sends the PWM signals previously calculated to the ESCs.
+- **Estimator node:** this node is in charge of estimating the velocities and accelerations of the QUAV based on the data extracted from the VICON camera system.
+- **VICON node:** this node was adopted from an ETH university's repository that can be found in the following link [https://github.com/ethz-asl/vicon_bridge](https://github.com/ethz-asl/vicon_bridge). This node acquires the information from the VICON camera system using a socket and the information is then used for the position and attitude calculations.
 
-Consider that, for the PID controller algorithm, only the files ending with the VICON termination were used. If in doubt of which files are important, check the _quad_VICON.launch_ and verify the scripts used for each of the nodes.
+Consider that, for the PID controller algorithm, only the files ending with the VICON termination were used. If in doubt of which files are relevant to fly the QUAV with the PID controller, check the _quad_VICON.launch_ and verify the scripts used for each of the nodes.
 
-As such, the desired position, attitude and velocity of the drone to which the user would like the drone to follow is set within the _position_control_VICON.cpp_ file, these can be set within lines 258 to 260:
+As such, the **desired position**, attitude and velocity of the drone to which the user would like the drone to follow is set within the **position node**, more specifically, the _position_control_VICON.cpp_ file and these can be set within lines 258 to 260:
 
 ```c++
 attitude_desired << 0.0, 0.0, 0.0;
 quad_desired_pos << 0.0, 0.0, 0.5;
 quad_desired_vel << 0.0, 0.0, 0.0;
 ```
+
+For the previous code line, the position is set to (0,0,0.5) for the (X,Y,Z) positions, all desired angles are set to 0° and a 0 m/s for the speed in all directions.
+
+Within the same script, an error between the actual and desired position is calculated as shown in lines 316 and 317.
+
+```c++
+error = quad_desired_pos - quad_pos;
+error_dot = quad_desired_vel - quad_vel_BF;
+```
+
+Using this information, the **thrust** (line 322),
+
+```c++
+float thrust_before_saturation = (quad_mass / (cos(quad_att(0))*cos(quad_att(1)))) * (accelerations_desired(2) + gravity + Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2));
+```
+
+and **desired angles** (lines 352, 363, and 382) are also calculated.
+
+```c++
+attitude_desired(2) = 0.0; // For now, yaw is fixed     
+```
+
+```c++
+roll_des_arg = (quad_mass / thrust) * (sin(attitude_desired(2))*(Kp(0)*error(0) + Ki(0)*error_integrated(0) + Kd(0)*error_dot(0)) - cos(attitude_desired(2))*(Kp(1)*error(1) + Ki(1)*error_integrated(1) + Kd(1)*error_dot(1)));
+    ...
+    ...
+    ...
+attitude_desired(0) = asin(roll_des_arg); //Roll desired
+```
+
+```c++
+pitch_des_arg = ((quad_mass / thrust) * (Kp(0)*error(0) + Ki(0)*error_integrated(0) + Kd(0)*error_dot(0)) - sin(attitude_desired(2))*sin(attitude_desired(0))) / (cos(attitude_desired(2))*cos(attitude_desired(0)));
+    ...
+    ...
+    ...
+attitude_desired(1) = asin(pitch_des_arg); //Pitch desired    
+```
+
