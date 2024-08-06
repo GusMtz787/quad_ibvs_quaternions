@@ -159,9 +159,9 @@ $$
 
 where $C_{T}$ describes the coefficient of thrust, $C_{D}$ stands for the torque coefficient, $L$ represents the length of the arm from the center of mass to the rotor and $\theta$ represents the angle from each of arms of the drone with respect to its centerline in radians. In this case, since a quad-rotor is being studied, the angle is $\theta = 45° = \pi/4$. Plus, the signs are considered depending on body frame used, in this case the NED (North-East-Down) frame was chosen.
 
-> **Note:** for matrix $\boldsymbol{A}$, the order of the motors 1,2,3,4 was considered as 1 being the upper-left motor, 2 the downward-left, 3 the upper-right, and 4 the downward-right.
+> **Note:** for matrix $\boldsymbol{A}$, the order of the motors 1,2,3,4 was considered as 1 being the upper-left motor, 2 the downward-left, 3 the downward-right, and 4 the upper-right.
 
-Finally the allocation matrix can be represented as:
+Finally, the allocation matrix can be represented as:
 
 $$
 \boldsymbol{A} =
@@ -275,8 +275,21 @@ pwm_values.y = pwm_signal(0) * 0.001;
 pwm_values.z = pwm_signal(2) * 0.001;
 ```
 
-> **Note:** the order of the PWMs were changed, there are several things affecting this. The variable _pwm_values_ contains the correct order in which the output pins of the NAVIO2 are conected with respect to the motors, considering w,x,y,z, as motors 1,2,3,4 respectively. Taking into account that motor 1 is the upper-right one, 2 the downward-left, 3 upper-left, and finally 4 the downward-right one.
+> **Note:** the order of the PWMs were changed. First, remember that the **order** of the motors from the **allocation matrix** was specified as 1 being the upper-left motor, 2 the downward-left, 3 the downward-right, and 4 the upper-right. Now, the variable _pwm_values_ contains the **correct order** in which the **output pins of the NAVIO2** are **conected** to the motors, which is **different from the one presented for matrix** $\boldsymbol{A}$. Therefore, considering the w,x,y,z subsets of the variable _pwm_values_ as motors 1,2,3,4 respectively, then motor 1 is the upper-right one, 2 the downward-left, 3 upper-left, and finally 4 the downward-right one. This explains the **change of order** undergone in the previous code of block, apart from the multiplication operation.
 
 ### PWM sender node
 
-Now that the PWM values are known
+Now that the PWM values are known, the software will interact with the hardware of the NAVIO2. To achieve this, the Python script _set_pwm.py_ initializes the ESCs and sends the values throughout the whole experiment.
+
+At this stage, much of the code to interact with the NAVIO2 hardware was extracted from their Github page, which can be found here: [https://github.com/emlid/Navio2](https://github.com/emlid/Navio2). 
+
+First of all, to interact with the PWM pins we need to access them, as seen in the offcial scripts from NAVIO2, we achieve this using the with() operator from Python. As seen in line 76, all four PWM pins are accessed in this way:
+
+```c++
+with navio2.pwm.PWM(PWM_OUTPUT_MOTOR_1) as pwm1, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_2) as pwm2, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_3) as pwm3, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_4) as pwm4:
+
+time.sleep(1.0) # MEGA IMPORTANT, without a delay the code will give permission errors.
+# Got the idea from here: https://github.com/vsergeev/python-periphery/issues/35
+```
+
+> **NOTE:** It was experimentally found that it is important to **wait for 1 second** for the system to properly access the PWM pins before executing other commands, otherwise the computer may report a permission error.
