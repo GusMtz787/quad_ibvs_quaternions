@@ -288,8 +288,9 @@ First of all, to interact with the PWM pins we need to access them, as seen in t
 ```c++
 with navio2.pwm.PWM(PWM_OUTPUT_MOTOR_1) as pwm1, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_2) as pwm2, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_3) as pwm3, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_4) as pwm4:
 
-time.sleep(1.0) # MEGA IMPORTANT, without a delay the code will give permission errors.
-# Got the idea from here: https://github.com/vsergeev/python-periphery/issues/35
+    time.sleep(1.0) # MEGA IMPORTANT...
+
+    # Got the idea from here: ...
 ```
 
 > **NOTE:** It was experimentally found that it is important to **wait for 1 second** for the system to properly access the PWM pins before executing other commands, otherwise the computer may report a permission error.
