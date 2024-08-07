@@ -1,6 +1,5 @@
 # Ignore everything in repository root 
 /*
-!CMakeLists.txt
 
 # Files to not ignore
 !/.gitignore
