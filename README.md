@@ -393,6 +393,6 @@ att_est(i) = att_est(i) + x1_dot(3+i) * step;
 
 Consider that the variables _x1_dot_ and _x2_dot_ are the **velocity** and **acceleration** for each axis, respectively. This information is **now available** and it is **streamed** through **ROS topics** for the other nodes to access it when needed.
 
-### Conclusion
+## Conclusion
 
 With this comprehensive guide, the intention was to **describe** the main **calculations** and **features** that were developed for the QUAV. With it the user is able to fly the quadrotor either **manually**, using Ardupilot's service, or **autonomously**, using a self-programmed PID controller for the latter. For any more questions regarding the development of this project, please contact Dr. Herman Castañeda from Tecnológico de Monterrey.
