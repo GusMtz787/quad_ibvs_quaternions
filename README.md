@@ -332,3 +332,22 @@ time.sleep(0.001)
 print("Finished enabling")
 ```
 
+#### Sending the PWM
+
+Now that all the steps prior to the normal operation of the ESCs were covered, the PWM needed to control the system can be sent. The PWM previously calculated in the prior node transmits the value through a ros topic. This PWMs are then limited to a certain threshold and they can be finally sent as seen in lines 110 to 121:
+
+```Python
+if (enable == 1 and not maxAngle):
+    pwm1.set_duty_cycle(pwm_signals[0])
+    pwm2.set_duty_cycle(pwm_signals[1])
+    pwm3.set_duty_cycle(pwm_signals[2])
+    pwm4.set_duty_cycle(pwm_signals[3])
+
+else:
+    #print("Disabling motors")
+    pwm1.set_duty_cycle(SERVO_ENABLE)
+    pwm2.set_duty_cycle(SERVO_ENABLE)
+    pwm3.set_duty_cycle(SERVO_ENABLE)
+    pwm4.set_duty_cycle(SERVO_ENABLE)
+```
+
