@@ -1,6 +1,6 @@
 # QUAV start-up guide
 
-This document provides a **guide to fly a QUAV** built in the Multi-Robot Systems Laboratory at Tecnológico de Monterrey, Monterrey Campus. The drone is able to fly in two modes: **manual and autonomous**. As to July 2024 the quad-rotor integrates a **Raspberry Pi 4** computer paired with a **NAVIO2 autopilot hat** device. What was done up until the mentioned date was a design of a low-level **PID control algorithm** that allows the quad-rotor (QUAV) to stabilize itself using the incoming data from a **VICON Valkyrie** camera system. The Robot Operating System (ROS) framework, C++ and Python programming languages were used for the complete system to work.
+This document provides a **guide to fly a QUAV** built in the Multi-Robot Systems Laboratory at Tecnológico de Monterrey, Monterrey Campus. The drone is able to fly in two modes: **manual and autonomous**. As of July 2024 the quad-rotor integrates a **Raspberry Pi 4** computer paired with a **NAVIO2 autopilot hat** device. What was done up until the mentioned date was a design of a low-level **PID control algorithm** that allows the quad-rotor (QUAV) to stabilize itself using the incoming data from a **VICON Valkyrie** camera system. The Robot Operating System (ROS) framework, C++, and Python programming languages were used for the complete system to work.
 
 It should be noted that this intended goal was not achieved to its entirety, _i.e._ some of the tests showed succesfull results, but other tests did not. There is a hypothesis to this and this will be explained at the end of this document.
 
@@ -250,7 +250,7 @@ omega << A.inverse() * control_inputs;
 
 Now the velocity squared is known, remember that the vector $\boldsymbol{x}$ has its elements squared by the own nature of the equation. Ideally it would be needed to have the velocities without the square. However, they are left squared for a specific reason that is going to be discussed now. To obtain the **value of a PWM** based on the **velocity of the motor**, experimental tests can be performed on a **dynamometer** using a motor from the quadrotor. As of July 2024, for a EMAX 900KV MT2212 motor (see the specifications here: [https://emaxmodel.com/products/emax-mt2212-900kv-multirotor-motor-cooling-series-with-prop1045-combo#](https://emaxmodel.com/products/emax-mt2212-900kv-multirotor-motor-cooling-series-with-prop1045-combo#)), the relationship that was found is expressed in the following equation:
 
-$$ \text{PWM} = -0.000000001149 \, \Omega^{4} + 0.00226 \, \Omega^{2} + 1118$$
+$$ \text{PWM} = -0.000000001149 \Omega^{4} + 0.00226 \Omega^{2} + 1118$$
 
 As it can be seen, within this 4th degree polynomial regression, the first $\Omega$ is raised to the fourth power and the second one is squared. As such, there is no need to perform a square root operation to the squared velocities that were found.
 
@@ -334,7 +334,7 @@ print("Finished enabling")
 
 #### Sending the PWM
 
-Now that all the steps prior to the normal operation of the ESCs were covered, the PWM needed to control the system can be sent. The PWM previously calculated in the prior node transmits the value through a ros topic. This PWMs are then limited to a certain threshold and they can be finally sent as seen in lines 110 to 121:
+Now that all the steps prior to the normal operation of the ESCs were covered, the PWM needed to control the system can be sent. The PWM previously calculated in the prior node transmits the value through a ROS topic. This PWMs are then limited to a certain threshold and they can be finally sent as seen in lines 110 to 121:
 
 ```Python
 if (enable == 1 and not maxAngle):
@@ -351,3 +351,48 @@ else:
     pwm4.set_duty_cycle(SERVO_ENABLE)
 ```
 
+> **NOTE:** for the signals to actually be sent, **two conditions** must be met. First, the **upper-left switch** from the Radioshack controller needs to be **enabled** _i.e._ in the **downward position**. Second, the **roll** and **pitch** angles must be **less** than **0.75 radians** (~ 43°). This is a **safety** measure given that the drone may start a routine and if it gets out of control, the angles will probably exceed this limiting angles. If this happens, then the computer will send the minimum PWM possible, which **doesn't spin** the rotors.
+
+> **NOTE:** The buttons that **enable or disable** certain behaviours **can be modified** within the _RadioControl.py_ file in the _pwm_package_ ROS package.
+
+#### Estimator node
+
+As mentioned before, the QUAV uses the data coming from the **VICON Valkyrie cameras** to **determine** its **current position**. The NAVIO2 incorporates several IMUs to estimate its position, velocity and accelerations. However, this project focused on extracting this information from the cameras and as such, this will be discussed.
+
+The first thing that needs to be considered is that the VICON Valkyrie cameras can only **stream the position and attitude** of any object (last update: August 2024). This means that **velocities and accelerations need to be estimated** in order to have this information. As such, **Dr. Armando Miranda** provided the _estimator.cpp_ file that includes help a novel **fixed-time extended state observer (FxTESO)** to **estimate the velocities and accelerations**. The only thing to do in this file is to make sure that the position and attitude information from the camera is being **accessed** through the **correct ROS topics** within this file. The theory behind this estimator leaves the scope of this comprehensive guide, however the implementation is simple.
+
+First, after making sure that the position and attitude information is being correctly accessed in this file. An **error** can be calculated between the real positio and the estimated position (similar to a controller) as is shown in line 238:
+
+```c++
+estimation_error_linear(i) = position(i) - pos_est(i);
+```
+
+This operation is performed for **all x-y-z axes**. Then, the FxTESO operation is performed (lines 238 through 245):
+
+```c++
+// Proceding with the estimator
+x2_dot(i) = G2(i) * sign(estimation_error_linear(i)) * ( powf(std::abs(estimation_error_linear(i)),((lambda(i) + 1)/2))  +  powf(std::abs(estimation_error_linear(i)),(varphi(i) + 1)/2) );
+vel_est(i) = vel_est(i) + x2_dot(i) * step;
+
+x1_dot(i) = vel_est(i) + G1(i) * sign(estimation_error_linear(i)) * ( powf(std::abs(estimation_error_linear(i)),(lambda(i) + 2)/3)  +  powf(std::abs(estimation_error_linear(i)),(varphi(i) + 2)/3) );
+pos_est(i) = pos_est(i) + x1_dot(i) * step;
+```
+
+The same procedure is then repeated for the **attitude** (lines 254 through 261):
+
+```c++
+estimation_error_angular(i) = attitude(i) - att_est(i);
+
+// Proceding with the estimator
+x2_dot(3+i) = G2(3+i) * sign(estimation_error_angular(i)) * ( powf(std::abs(estimation_error_angular(i)),((lambda(3+i) + 1)/2))  +  powf(std::abs(estimation_error_angular(i)),(varphi(3+i) + 1)/2) );
+attvel_est(i) = attvel_est(i) + x2_dot(3+i) * step;
+
+x1_dot(3+i) = attvel_est(i) + G1(3+i) * sign(estimation_error_angular(i)) * ( powf(std::abs(estimation_error_angular(i)),(lambda(3+i) + 2)/3)  +  powf(std::abs(estimation_error_angular(i)),(varphi(3+i) + 2)/3) );
+att_est(i) = att_est(i) + x1_dot(3+i) * step;
+```
+
+Consider that the variables _x1_dot_ and _x2_dot_ are the **velocity** and **acceleration** for each axis, respectively. This information is **now available** and it is **streamed** through **ROS topics** for the other nodes to access it when needed.
+
+### Conclusion
+
+With this comprehensive guide, the intention was to **describe** the main **calculations** and **features** that were developed for the QUAV. With it the user is able to fly the quadrotor either **manually**, using Ardupilot's service, or **autonomously**, using a self-programmed PID controller for the latter. For any more questions regarding the development of this project, please contact Dr. Herman Castañeda from Tecnológico de Monterrey.
