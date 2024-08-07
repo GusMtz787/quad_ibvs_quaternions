@@ -107,17 +107,11 @@ def sender():
                 # enable variable controls if the motors will spin or not.
                 # if enable is 1, then the motors are set to spin, else they will stop.
 
-                # if (enable == 1 and not maxAngle):
-                #     pwm1.set_duty_cycle(pwm_signals[0])
-                #     pwm2.set_duty_cycle(pwm_signals[1])
-                #     pwm3.set_duty_cycle(pwm_signals[2])
-                #     pwm4.set_duty_cycle(pwm_signals[3])
-
-                if (True):
-                    pwm1.set_duty_cycle(1.15)
-                    pwm2.set_duty_cycle(1.15)
-                    pwm3.set_duty_cycle(1.15)
-                    pwm4.set_duty_cycle(1.15)
+                if (enable == 1 and not maxAngle):
+                    pwm1.set_duty_cycle(pwm_signals[0])
+                    pwm2.set_duty_cycle(pwm_signals[1])
+                    pwm3.set_duty_cycle(pwm_signals[2])
+                    pwm4.set_duty_cycle(pwm_signals[3])
 
                 else:
                     #print("Disabling motors")
