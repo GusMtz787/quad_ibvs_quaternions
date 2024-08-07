@@ -56,7 +56,7 @@ All the code that **enables a proper functioning** of the QUAV will be explained
 - **Attitude node:** controls the attitude of the QUAV.
 - **Radio control node:** establishes communication between the radio controller and the main computer.
 - **PWM publisher node:** calculates the PWM signals needed to control the QUAV based on the information of the position and attitude nodes.
-- **PWM sender node:** sends the PWM signals previously calculated to the ESCs.
+- **PWM sender node:** sends the PWM signals previously calculated to the ESCs (Electronic Speed Controller).
 - **Estimator node:** this node is in charge of estimating the velocities and accelerations of the QUAV based on the data extracted from the VICON camera system.
 - **VICON node:** this node was adopted from an ETH university's repository that can be found in the following link [https://github.com/ethz-asl/vicon_bridge](https://github.com/ethz-asl/vicon_bridge). This node acquires the information from the VICON camera system using a socket and the information is then used for the position and attitude calculations.
 
@@ -135,17 +135,17 @@ tau(1) = Kp(1)*error(1) + Ki(1)*error_integrated(1) + Kd(1)*error_dot(1);
 tau(2) = Kp(2)*error(2) + Ki(2)*error_integrated(2) + Kd(2)*error_dot(2);
 ```
 
-> **Note:** Due to a testing phase some of the variables were saturated and others were not, when tuning the drone all variables should be saturated. These saturation limits may be experimental or can be previously calculated according to the available electronics and equipment. Therefore the **limits should be adjusted according** to the system and enabled for all variables.
+> **NOTE:** Due to testing phases some of the variables were saturated and others were not, when tuning the drone all variables should be saturated. These saturation limits may be experimental or can be previously calculated according to the available electronics and equipment. Therefore the **limits should be adjusted according** to the system and enabled for all variables.
 
 Now that the control inputs of the system have been calculated (thrust and torques) a **mapping** from thrust/torques to PWM is performed. This is achieved thanks to what is known as the allocation matrix. This is a matrix that relates the torque/thrust variable as a vector with the needed PWM vector based on several factors that will be further explained. As such, the node **PWM calculation node** is the next one to be discussed.
 
 ### PWM calculation node
 
-The _pwms.cpp_ file contains the essential elements to relate the **control inputs** to the **PWM signals**. First of all, there is a correlation that can be drawn between the control inputs $\boldsymbol{y} \in \mathbb{R}^{4} $ and the velocities of the motors squared $\boldsymbol{x} \in \mathbb{R}^{4}$ is given by the allocation matrix $\boldsymbol{A} \in \mathbb{R}^{4 \times 4}$ as expressed in the following equation:
+The _pwms.cpp_ file contains the essential elements to relate the **control inputs** to the **PWM signals**. First of all, there is a correlation that can be drawn between the control inputs $\boldsymbol{y} \in \mathbb{R}^{4} $ and the velocities of the motors squared $\boldsymbol{x} \in \mathbb{R}^{4}$ which is given by the allocation matrix $\boldsymbol{A} \in \mathbb{R}^{4 \times 4}$ as expressed in the following equation:
 
 $$\boldsymbol{y} = \boldsymbol{A} \boldsymbol{x}$$
 
-the allocation matrix contains information about the QUAV's model:
+the allocation matrix contains information about the QUAV's model, this matrix is properly presented:
 
 $$
 \boldsymbol{A} =
@@ -157,11 +157,11 @@ $$
 \end{bmatrix}
 $$
 
-where $C_{T}$ describes the coefficient of thrust, $C_{D}$ stands for the torque coefficient, $L$ represents the length of the arm from the center of mass to the rotor and $\theta$ represents the angle from each of arms of the drone with respect to its centerline in radians. In this case, since a quad-rotor is being studied, the angle is $\theta = 45° = \pi/4$. Plus, the signs are considered depending on body frame used, in this case the NED (North-East-Down) frame was chosen.
+where $C_{T}$ describes the coefficient of thrust of the motors, $C_{D}$ stands for the motor's torque coefficient, $L$ represents the length of the arm from the center of mass to the rotor, and $\theta$ represents the angle from each of arms of the drone with respect to its centerline in radians. In this case, since a quad-rotor is being studied, the angle is $\theta = 45° = \pi/4$. Plus, the signs are considered based on the body frame used. In this case the NED (North-East-Down) frame was chosen.
 
-> **Note:** for matrix $\boldsymbol{A}$, the order of the motors 1,2,3,4 was considered as 1 being the upper-left motor, 2 the downward-left, 3 the downward-right, and 4 the upper-right.
+> **NOTE:** for matrix $\boldsymbol{A}$, the order of the motors 1,2,3,4 was considered as 1 being the upper-left motor, 2 the downward-left, 3 the downward-right, and 4 the upper-right.
 
-Finally, the allocation matrix can be represented as:
+For simplicity by replacing the $\sin(\theta)$ with the respective angle for this drone _i.e._ $\pi/4$, the allocation matrix can be represented as:
 
 $$
 \boldsymbol{A} =
@@ -248,11 +248,13 @@ This same procedure is found in line 73:
 omega << A.inverse() * control_inputs; 
 ```
 
-Now the velocity squared is known, remember that the vector $\boldsymbol{x}$ has its elements squared by the own nature of the equation. Ideally it would be needed to have the velocities without the square. However, they are left squared for a specific reason that is going to be discussed now. To obtain the **value of a PWM** based on the **velocity of the motor**, experimental tests can be performed on a **dynamometer** using a motor from the quadrotor. In the laboratory, the relationship that was found is expressed in the following equation:
+Now the velocity squared is known, remember that the vector $\boldsymbol{x}$ has its elements squared by the own nature of the equation. Ideally it would be needed to have the velocities without the square. However, they are left squared for a specific reason that is going to be discussed now. To obtain the **value of a PWM** based on the **velocity of the motor**, experimental tests can be performed on a **dynamometer** using a motor from the quadrotor. As of July 2024, for a EMAX 900KV MT2212 motor (see the specifications here: [https://emaxmodel.com/products/emax-mt2212-900kv-multirotor-motor-cooling-series-with-prop1045-combo#](https://emaxmodel.com/products/emax-mt2212-900kv-multirotor-motor-cooling-series-with-prop1045-combo#)), the relationship that was found is expressed in the following equation:
 
 $$ \text{PWM} = -0.000000001149 \, \Omega^{4} + 0.00226 \, \Omega^{2} + 1118$$
 
-As it can be seen, the first $\Omega$ is raised to the fourth power and the second one is squared. As such, there is no need to perform a square root operations to the squared velocities that were found.
+As it can be seen, within this 4th degree polynomial regression, the first $\Omega$ is raised to the fourth power and the second one is squared. As such, there is no need to perform a square root operation to the squared velocities that were found.
+
+> **NOTE:** as additional information, consider that ESCs commonly work between PWM signals of 1000 to 2000 mili-seconds.
 
 Therefore, the **PWM values** for all 4 motors are calculated in lines 75 to 78:
 
@@ -275,15 +277,17 @@ pwm_values.y = pwm_signal(0) * 0.001;
 pwm_values.z = pwm_signal(2) * 0.001;
 ```
 
-> **Note:** the order of the PWMs were changed. First, remember that the **order** of the motors from the **allocation matrix** was specified as 1 being the upper-left motor, 2 the downward-left, 3 the downward-right, and 4 the upper-right. Now, the variable _pwm_values_ contains the **correct order** in which the **output pins of the NAVIO2** are **conected** to the motors, which is **different from the one presented for matrix** $\boldsymbol{A}$. Therefore, considering the w,x,y,z subsets of the variable _pwm_values_ as motors 1,2,3,4 respectively, then motor 1 is the upper-right one, 2 the downward-left, 3 upper-left, and finally 4 the downward-right one. This explains the **change of order** undergone in the previous code of block, apart from the multiplication operation.
+> **NOTE:** the order of the PWMs were changed. First, remember that the **order** of the motors from the **allocation matrix** was specified as 1 being the upper-left motor, 2 the downward-left, 3 the downward-right, and 4 the upper-right. Now, the variable _pwm_values_ contains the **correct order** in which the **output pins of the NAVIO2** are **conected** to the motors, which is **different from the one presented for matrix** $\boldsymbol{A}$. Therefore, considering the w,x,y,z subsets of the variable _pwm_values_ as motors 1,2,3,4 respectively, then motor 1 is the upper-right one, 2 the downward-left, 3 upper-left, and finally 4 the downward-right one. This explains the **change of order** undergone in the previous code of block, apart from the multiplication operation.
 
 ### PWM sender node
 
-Now that the PWM values are known, the software will interact with the hardware of the NAVIO2. To achieve this, the Python script _set_pwm.py_ initializes the ESCs and sends the values throughout the whole experiment.
+Now that the PWM values are known, the software will interact with the hardware of the NAVIO2. To achieve this, another **ROS package** named _pwm_package_ was created with the purpose of isolating the scripts that just perform the calculations and those that interact with the hardware. The Python script _set_pwm.py_ **arms the ESCs** and **sends the PWM values** needed to control the QUAV throughout the whole experiment.
 
-At this stage, much of the code to interact with the NAVIO2 hardware was extracted from their Github page, which can be found here: [https://github.com/emlid/Navio2](https://github.com/emlid/Navio2). 
+> **NOTE:** At this stage, much of the code to interact with the NAVIO2 hardware was extracted from their **Github page**, which can be found here: [https://github.com/emlid/Navio2](https://github.com/emlid/Navio2).
 
-First of all, to interact with the PWM pins we need to access them, as seen in the offcial scripts from NAVIO2, we achieve this using the with() operator from Python. As seen in line 76, all four PWM pins are accessed in this way:
+#### Accessing PWM available pins
+
+First of all, to interact with the PWM pins we need to have **access** to them. As seen in the offcial NAVIO2's Github documentation, we achieve this using the **with()** operator from Python. In line 76, all four PWM pins are accessed in this way:
 
 ```c++
 with navio2.pwm.PWM(PWM_OUTPUT_MOTOR_1) as pwm1, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_2) as pwm2, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_3) as pwm3, navio2.pwm.PWM(PWM_OUTPUT_MOTOR_4) as pwm4:
@@ -293,4 +297,38 @@ with navio2.pwm.PWM(PWM_OUTPUT_MOTOR_1) as pwm1, navio2.pwm.PWM(PWM_OUTPUT_MOTOR
     # Got the idea from here: ...
 ```
 
-> **NOTE:** It was experimentally found that it is important to **wait for 1 second** for the system to properly access the PWM pins before executing other commands, otherwise the computer may report a permission error.
+> **NOTE:** It was experimentally found that it is important to **wait for 1 second** for the system to properly access the PWM pins before executing other commands, otherwise the computer may report a **permission error**.
+
+#### Setting operating frequencies and enabling pins
+
+The NAVIO2 requests to set a frequency at which the PWM pins will work, as well as explicitly enable the PWM pins using the _enable()_ function. In this project, the operating frequency was set as 50 Hz, the NAVIO2 supports as much as 400 Hz. This was all programmed in lines 80 through 87:
+
+```c++
+pwm1.set_period(50)
+pwm2.set_period(50)
+pwm3.set_period(50)
+pwm4.set_period(50)
+pwm1.enable()
+pwm2.enable()
+pwm3.enable()
+pwm4.enable()
+```
+
+> **NOTE:** there are certain doubts regarding the operating frequency with the NAVIO2. It was initially believed that **increasing** the frequency would **help** with the **stabilization** of the drone. As such, 400 Hz was also tested but the results were the same. **More experiments** changing this frequency are **recommended**.
+
+#### Arming the ESCs
+
+Before sending the PWMs that will control the system, it is necessary to first **arm the ESCs**. This procedure **may vary between ESCs**, but usually this is achieved by sending a **high signal** for a brief period of time.
+As of July 2024, the drone is equipped with 4 Hobbywing Platinum 30A Brushless ESCs, for this specific model of ESCs the arming was achieved by sending a high signal and waiting 1 mili-second. This was written in lines 91 to 95:
+
+```Python
+# Check ESC arm
+print("Enabling ESCs")
+pwm1.set_duty_cycle(SERVO_MAX)
+pwm2.set_duty_cycle(SERVO_MAX)
+pwm3.set_duty_cycle(SERVO_MAX)
+pwm4.set_duty_cycle(SERVO_MAX)
+time.sleep(0.001)
+print("Finished enabling")
+```
+
