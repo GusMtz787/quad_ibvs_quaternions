@@ -1,5 +1,7 @@
 # QUAV start-up guide
 
+Last updated: August 2024 - Gustavo Olivas
+
 This document provides a **guide to fly a QUAV** built in the Multi-Robot Systems Laboratory at Tecnológico de Monterrey, Monterrey Campus. The drone is able to fly in two modes: **manual and autonomous**. As of July 2024 the quad-rotor integrates a **Raspberry Pi 4** computer paired with a **NAVIO2 autopilot hat** device. What was done up until the mentioned date was a design of a low-level **PID control algorithm** that allows the quad-rotor (QUAV) to stabilize itself using the incoming data from a **VICON Valkyrie** camera system. The Robot Operating System (ROS) framework, C++, and Python programming languages were used for the complete system to work.
 
 It should be noted that this intended goal was not achieved to its entirety, _i.e._ some of the tests showed succesfull results, but other tests did not. There is a hypothesis to this and this will be explained at the end of this document.
@@ -392,6 +394,14 @@ att_est(i) = att_est(i) + x1_dot(3+i) * step;
 ```
 
 Consider that the variables _x1_dot_ and _x2_dot_ are the **velocity** and **acceleration** for each axis, respectively. This information is **now available** and it is **streamed** through **ROS topics** for the other nodes to access it when needed.
+
+## Discussion
+
+As was mentioned in the introduction of this documentation, a full autonomous PID-controlled QUAV system hasn't been achieved for all kinds of tests (ignoring the Ardupilot autopilot). **Attitude control** was achieved in many tests, however the **position control** hasn't been finished. Nevertheless, specific problems were detected where potential problems are believed to cause special difficulty to achieve a full attitude and position control:
+
+- It appears that with the current hardware setup and without graphing the telemetry obtained, the maximum frequency at which the control loop ran was of ~170 Hz. It has been found in the literature that higher frequencies are needed for a proper control. This implies that calculating the control law and therefore the control inputs, may potentially be **too slow** if based **completely in ROS**. To **solve** this, a **Teensy 4.1** board was proposed to replace the low-level microcontroller that calculates the control inputs. In other words, the **Raspberry Pi** would be in charge of **receiving the data** from the cameras through WIFI and then this information is **transferred to the Teensy**, which is capabable of running at **higher frequencies** than 170 Hz.
+
+- Another potential problem that was not thoroughly tested is the **update frequency** of the QUAV's **position**. The VICON Valkyrie system is in charge of this, and the ROS topic that enables this update was set to **run at 100 Hz**. It would be beneficial to test if this topic can be set at higher speeds and compare if that affects the overall performance of the QUAV. Alternatively, the NAVIO2 contains several IMUs, these can be accessed using the code provided by the NAVIO2's developer on their Github account (showed earlier in this documentation). Processing incoming IMU data may (almost surely) be faster than acquiring the information from the cameras via WIFI.
 
 ## Conclusion
 
